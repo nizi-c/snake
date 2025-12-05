@@ -14,7 +14,9 @@ export enum FoodType {
   FRUIT,
   ORANGE,
   WATERMELON,
-  MUSHROOM
+  MUSHROOM,
+  LEMON,
+  FLOWER
 }
 
 interface FoodItem {
@@ -32,6 +34,8 @@ export class SnakeGame {
   private score: number = 0;
   private isGameOver: boolean = false;
   private speed: number = 200;
+  private baseSpeed: number = 200;
+  private speedMultiplier: number = 1.0; // 速度倍数（由食物效果累积）
   private startTime: number = 0;
   private survivalTime: number = 0;
   private lastFoodSpawnTime: number = 0;
@@ -40,6 +44,7 @@ export class SnakeGame {
 
   constructor(speed: number = 200, gridSize: number = 20) {
     this.speed = speed;
+    this.baseSpeed = speed;
     this.gridSize = gridSize;
     this.init();
   }
@@ -60,6 +65,7 @@ export class SnakeGame {
     this.survivalTime = 0;
     this.foods = [];
     this.lastFoodSpawnTime = Date.now();
+    this.speedMultiplier = 1.0; // 重置速度倍数
     this.spawnFood();
   }
 
@@ -100,7 +106,35 @@ export class SnakeGame {
   }
 
   getSpeed(): number {
-    return this.speed;
+    // 根据分数计算当前速度
+    // 每50分速度加快10%（时间间隔减少10%）
+    const speedLevel = Math.floor(this.score / 50);
+    const scoreSpeedMultiplier = Math.pow(0.9, speedLevel); // 每级速度提升10%
+    
+    // 综合分数加速和食物效果
+    const currentSpeed = Math.max(this.baseSpeed * scoreSpeedMultiplier * this.speedMultiplier, 50); // 最快不超过50ms
+    return Math.floor(currentSpeed);
+  }
+
+  getBaseSpeed(): number {
+    return this.baseSpeed;
+  }
+
+  setBaseSpeed(speed: number) {
+    this.baseSpeed = speed;
+  }
+
+  getSpeedMultiplier(): number {
+    return this.speedMultiplier;
+  }
+
+  getCurrentSpeedRatio(): number {
+    // 返回当前速度相对于初始速度的比率
+    // 速度越快，比率越大（因为时间间隔越小）
+    const speedLevel = Math.floor(this.score / 50);
+    const scoreSpeedMultiplier = Math.pow(0.9, speedLevel);
+    // 实际速度比率 = 1 / (scoreSpeedMultiplier * speedMultiplier)
+    return 1.0 / (scoreSpeedMultiplier * this.speedMultiplier);
   }
 
   isOver(): boolean {
@@ -176,8 +210,12 @@ export class SnakeGame {
 
   private getRandomFoodType(): FoodType {
     const random = Math.random() * 100;
-    if (random < 70) {
-      return FoodType.FRUIT; // 70%
+    if (random < 40) {
+      return FoodType.FRUIT; // 40%
+    } else if (random < 55) {
+      return FoodType.LEMON; // 15%
+    } else if (random < 70) {
+      return FoodType.FLOWER; // 15%
     } else if (random < 85) {
       return FoodType.ORANGE; // 15%
     } else if (random < 90) {
@@ -197,8 +235,24 @@ export class SnakeGame {
         return 30;
       case FoodType.MUSHROOM:
         return -10;
+      case FoodType.LEMON:
+        return 0;
+      case FoodType.FLOWER:
+        return 0;
       default:
         return 10;
+    }
+  }
+
+  private getFoodSpeedEffect(type: FoodType): number {
+    // 返回速度倍数变化
+    switch (type) {
+      case FoodType.LEMON:
+        return 1.1; // 减速10%（时间增加10%）
+      case FoodType.FLOWER:
+        return 0.9; // 加速10%（时间减少10%）
+      default:
+        return 1.0; // 无影响
     }
   }
 
@@ -278,14 +332,22 @@ export class SnakeGame {
       if (newHead.x === this.foods[i].position.x && newHead.y === this.foods[i].position.y) {
         const foodType = this.foods[i].type;
         const scoreChange = this.getFoodScore(foodType);
+        const speedEffect = this.getFoodSpeedEffect(foodType);
+        
         this.score += scoreChange;
         // 确保分数不为负
         if (this.score < 0) {
           this.score = 0;
         }
+        
+        // 应用速度效果
+        this.speedMultiplier *= speedEffect;
+        // 限制速度倍数范围（0.5到2.0之间）
+        this.speedMultiplier = Math.max(0.5, Math.min(2.0, this.speedMultiplier));
+        
         this.foods.splice(i, 1);
         ateFood = true;
-        console.info(`Ate ${FoodType[foodType]}, score change: ${scoreChange}, total score: ${this.score}`);
+        console.info(`Ate ${FoodType[foodType]}, score: ${scoreChange}, speed effect: ${speedEffect}, multiplier: ${this.speedMultiplier.toFixed(2)}`);
         break;
       }
     }

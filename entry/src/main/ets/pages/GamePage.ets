@@ -33,13 +33,20 @@ struct GamePage {
   async loadGameSettings() {
     const params = router.getParams() as Record<string, Object>;
     this.gameMode = (params?.mode as string) || 'casual';
-    const speed = this.gameMode === 'challenge' ? 100 : 200;
+    
+    let baseSpeed = this.gameMode === 'challenge' ? 100 : 200;
+    let gridSize = 20;
     
     // 检查是否从设置页面返回
-    if (params?.reload && params?.gridSize) {
-      const gridSize = params.gridSize as number;
-      console.info('Reloading game with new grid size:', gridSize);
-      this.game = new SnakeGame(speed, gridSize);
+    if (params?.reload) {
+      if (params?.gridSize) {
+        gridSize = params.gridSize as number;
+      }
+      if (params?.baseSpeed) {
+        baseSpeed = params.baseSpeed as number;
+      }
+      console.info('Reloading game with new settings - gridSize:', gridSize, 'baseSpeed:', baseSpeed);
+      this.game = new SnakeGame(baseSpeed, gridSize);
       this.stopGame();
       this.drawGame();
       return;
@@ -49,11 +56,17 @@ struct GamePage {
     try {
       const context = getContext(this);
       const prefs = await preferences.getPreferences(context, 'snake_settings');
-      const gridSize = await prefs.get('gridSize', 20) as number;
-      this.game = new SnakeGame(speed, gridSize);
+      gridSize = await prefs.get('gridSize', 20) as number;
+      
+      // 只在休闲模式使用自定义速度，挑战模式固定为100ms
+      if (this.gameMode === 'casual') {
+        baseSpeed = await prefs.get('baseSpeed', 200) as number;
+      }
+      
+      this.game = new SnakeGame(baseSpeed, gridSize);
     } catch (err) {
       console.error('Failed to load settings:', err);
-      this.game = new SnakeGame(speed);
+      this.game = new SnakeGame(baseSpeed, gridSize);
     }
   }
 
@@ -75,7 +88,9 @@ struct GamePage {
         { type: FoodType.FRUIT, file: 'fruit.png' } as FoodImageConfig,
         { type: FoodType.ORANGE, file: 'orange.png' } as FoodImageConfig,
         { type: FoodType.WATERMELON, file: 'watermelon.png' } as FoodImageConfig,
-        { type: FoodType.MUSHROOM, file: 'mushroom.png' } as FoodImageConfig
+        { type: FoodType.MUSHROOM, file: 'mushroom.png' } as FoodImageConfig,
+        { type: FoodType.LEMON, file: 'lemon.png' } as FoodImageConfig,
+        { type: FoodType.FLOWER, file: 'flower.png' } as FoodImageConfig
       ];
       
       for (const food of foodFiles) {
@@ -197,6 +212,14 @@ struct GamePage {
     } else if (this.isPaused) {
       this.resumeGame();
     }
+  }
+
+  getSpeedColor(): string {
+    const ratio = this.game.getCurrentSpeedRatio();
+    if (ratio >= 1.5) return '#FF5722'; // 很快 - 红色
+    if (ratio >= 1.2) return '#FF9800'; // 快 - 橙色
+    if (ratio >= 0.8) return '#4CAF50'; // 正常 - 绿色
+    return '#2196F3'; // 慢 - 蓝色
   }
 
   @Builder
@@ -380,10 +403,17 @@ struct GamePage {
             .justifyContent(FlexAlign.Center)
 
             Row() {
-              Text(`得分: ${this.game.getScore()}`)
-                .fontSize(18)
-                .fontWeight(FontWeight.Medium)
-                .margin({ right: 10 })
+              Column() {
+                Text(`得分: ${this.game.getScore()}`)
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Medium)
+                
+                Text(`速度: ${this.game.getCurrentSpeedRatio().toFixed(1)}x`)
+                  .fontSize(14)
+                  .fontColor(this.getSpeedColor())
+              }
+              .alignItems(HorizontalAlign.End)
+              .margin({ right: 10 })
 
               Button('⋮')
                 .fontSize(24)
@@ -400,11 +430,18 @@ struct GamePage {
           .justifyContent(FlexAlign.SpaceBetween)
           .padding({ left: 20, right: 20 })
 
-          // 第二行：时间和控制按钮
+          // 第二行：时间、速度和控制按钮
           Row() {
-            Text(`时间: ${this.currentTime}`)
-              .fontSize(16)
-              .fontColor('#666666')
+            Column() {
+              Text(`时间: ${this.currentTime}`)
+                .fontSize(16)
+                .fontColor('#666666')
+              
+              Text(`速度: ${this.game.getSpeed()}ms`)
+                .fontSize(14)
+                .fontColor('#999999')
+            }
+            .alignItems(HorizontalAlign.Start)
 
             if (this.gameMode === 'casual') {
               Row() {
