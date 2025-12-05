@@ -42,12 +42,15 @@ export class SnakeGame {
   private lastFoodSpawnTime: number = 0;
   private readonly FOOD_SPAWN_INTERVAL: number = 4000; // 4秒
   private readonly FOOD_LIFETIME: number = 10000; // 10秒
+  private character: string = 'cat.png'; // 当前角色
+  private mushroomImmunity: number = 0; // 蘑菇免疫次数
 
-  constructor(speed: number = 200, gridWidth: number = 22, gridHeight: number = 15) {
+  constructor(speed: number = 200, gridWidth: number = 22, gridHeight: number = 15, character: string = 'cat.png') {
     this.speed = speed;
     this.baseSpeed = speed;
     this.gridWidth = gridWidth;
     this.gridHeight = gridHeight;
+    this.character = character;
     this.init();
   }
 
@@ -68,7 +71,36 @@ export class SnakeGame {
     this.foods = [];
     this.lastFoodSpawnTime = Date.now();
     this.speedMultiplier = 1.0; // 重置速度倍数
+    this.initCharacterAbility(); // 初始化角色能力
     this.spawnFood();
+  }
+
+  private initCharacterAbility() {
+    // 根据角色初始化特殊能力
+    switch (this.character) {
+      case 'cat.png':
+        this.mushroomImmunity = 3; // 小猫：免疫3次蘑菇扣分
+        break;
+      case 'dog.png':
+        // 小狗的特性（待添加）
+        break;
+      case 'rabbit.png':
+        // 兔子的特性（待添加）
+        break;
+      case 'cangshu.png':
+        // 仓鼠的特性（待添加）
+        break;
+      default:
+        this.mushroomImmunity = 0;
+    }
+  }
+
+  getMushroomImmunity(): number {
+    return this.mushroomImmunity;
+  }
+
+  getCharacter(): string {
+    return this.character;
   }
 
   startTimer() {
@@ -216,18 +248,18 @@ export class SnakeGame {
 
   private getRandomFoodType(): FoodType {
     const random = Math.random() * 100;
-    if (random < 40) {
-      return FoodType.FRUIT; // 40%
-    } else if (random < 55) {
+    if (random < 30) {
+      return FoodType.FRUIT; // 30%
+    } else if (random < 45) {
       return FoodType.LEMON; // 15%
-    } else if (random < 70) {
+    } else if (random < 60) {
       return FoodType.FLOWER; // 15%
-    } else if (random < 85) {
-      return FoodType.ORANGE; // 15%
-    } else if (random < 90) {
+    } else if (random < 70) {
+      return FoodType.ORANGE; // 10%
+    } else if (random < 75) {
       return FoodType.WATERMELON; // 5%
     } else {
-      return FoodType.MUSHROOM; // 10%
+      return FoodType.MUSHROOM; // 25%
     }
   }
 
@@ -240,7 +272,7 @@ export class SnakeGame {
       case FoodType.WATERMELON:
         return 30;
       case FoodType.MUSHROOM:
-        return -10;
+        return -20;
       case FoodType.LEMON:
         return 0;
       case FoodType.FLOWER:
@@ -337,8 +369,15 @@ export class SnakeGame {
     for (let i = this.foods.length - 1; i >= 0; i--) {
       if (newHead.x === this.foods[i].position.x && newHead.y === this.foods[i].position.y) {
         const foodType = this.foods[i].type;
-        const scoreChange = this.getFoodScore(foodType);
+        let scoreChange = this.getFoodScore(foodType);
         const speedEffect = this.getFoodSpeedEffect(foodType);
+        
+        // 小猫特性：免疫蘑菇扣分
+        if (foodType === FoodType.MUSHROOM && scoreChange < 0 && this.mushroomImmunity > 0) {
+          this.mushroomImmunity--;
+          scoreChange = 0; // 免疫扣分
+          console.info(`Cat immunity activated! Remaining: ${this.mushroomImmunity}`);
+        }
         
         this.score += scoreChange;
         // 确保分数不为负

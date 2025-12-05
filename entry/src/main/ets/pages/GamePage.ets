@@ -67,7 +67,7 @@ struct GamePage {
         await this.loadCharacterImage(characterImage);
       }
       console.info('Reloading game with new settings - gridWidth:', gridWidth, 'gridHeight:', gridHeight, 'baseSpeed:', baseSpeed, 'character:', characterImage);
-      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
       this.stopGame();
       this.drawGame();
       return;
@@ -86,10 +86,10 @@ struct GamePage {
         baseSpeed = await prefs.get('baseSpeed', 200) as number;
       }
       
-      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
     } catch (err) {
       console.error('Failed to load settings:', err);
-      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
     }
   }
 
@@ -493,9 +493,17 @@ struct GamePage {
                 .fontSize(16)
                 .fontColor('#666666')
               
-              Text(`速度: ${this.game.getSpeed()}ms`)
-                .fontSize(14)
-                .fontColor('#999999')
+              Row() {
+                Text(`速度: ${this.game.getSpeed()}ms`)
+                  .fontSize(14)
+                  .fontColor('#999999')
+                
+                if (this.game.getCharacter() === 'cat.png' && this.game.getMushroomImmunity() > 0) {
+                  Text(` | 🛡️×${this.game.getMushroomImmunity()}`)
+                    .fontSize(14)
+                    .fontColor('#FF9800')
+                }
+              }
             }
             .alignItems(HorizontalAlign.Start)
 

@@ -12,7 +12,7 @@ interface CharacterInfo {
 struct CharacterSelectPage {
   @State selectedCharacter: string = 'cat.png';
   private characters: CharacterInfo[] = [
-    { name: '小猫', image: 'cat.png', description: '可爱的小猫咪' } as CharacterInfo,
+    { name: '小猫', image: 'cat.png', description: '免疫3次蘑菇扣分' } as CharacterInfo,
     { name: '小狗', image: 'dog.png', description: '忠诚的小狗狗' } as CharacterInfo,
     { name: '兔子', image: 'rabbit.png', description: '活泼的小兔子' } as CharacterInfo,
     { name: '仓鼠', image: 'cangshu.png', description: '萌萌的小仓鼠' } as CharacterInfo
