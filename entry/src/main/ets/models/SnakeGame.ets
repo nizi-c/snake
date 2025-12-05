@@ -163,15 +163,43 @@ export class SnakeGame {
       };
     } while (this.isPositionOccupied(newFood));
     
-    // 随机选择食物类型
-    const foodTypes = [FoodType.FRUIT, FoodType.ORANGE, FoodType.WATERMELON, FoodType.MUSHROOM];
-    const randomType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+    // 根据概率选择食物类型
+    // FRUIT: 70%, ORANGE: 15%, WATERMELON: 5%, MUSHROOM: 10%
+    const randomType = this.getRandomFoodType();
     
     this.foods.push({
       position: newFood,
       createTime: Date.now(),
       type: randomType
     });
+  }
+
+  private getRandomFoodType(): FoodType {
+    const random = Math.random() * 100;
+    if (random < 70) {
+      return FoodType.FRUIT; // 70%
+    } else if (random < 85) {
+      return FoodType.ORANGE; // 15%
+    } else if (random < 90) {
+      return FoodType.WATERMELON; // 5%
+    } else {
+      return FoodType.MUSHROOM; // 10%
+    }
+  }
+
+  private getFoodScore(type: FoodType): number {
+    switch (type) {
+      case FoodType.FRUIT:
+        return 10;
+      case FoodType.ORANGE:
+        return 20;
+      case FoodType.WATERMELON:
+        return 30;
+      case FoodType.MUSHROOM:
+        return -10;
+      default:
+        return 10;
+    }
   }
 
   private isPositionOnSnake(pos: Position): boolean {
@@ -248,9 +276,16 @@ export class SnakeGame {
     let ateFood = false;
     for (let i = this.foods.length - 1; i >= 0; i--) {
       if (newHead.x === this.foods[i].position.x && newHead.y === this.foods[i].position.y) {
-        this.score += 10;
+        const foodType = this.foods[i].type;
+        const scoreChange = this.getFoodScore(foodType);
+        this.score += scoreChange;
+        // 确保分数不为负
+        if (this.score < 0) {
+          this.score = 0;
+        }
         this.foods.splice(i, 1);
         ateFood = true;
+        console.info(`Ate ${FoodType[foodType]}, score change: ${scoreChange}, total score: ${this.score}`);
         break;
       }
     }
