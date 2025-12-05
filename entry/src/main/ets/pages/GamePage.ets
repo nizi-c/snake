@@ -1,7 +1,12 @@
 import router from '@ohos.router';
-import { SnakeGame, Direction, Position } from '../models/SnakeGame';
+import { SnakeGame, Direction, Position, FoodType } from '../models/SnakeGame';
 import image from '@ohos.multimedia.image';
 import preferences from '@ohos.data.preferences';
+
+interface FoodImageConfig {
+  type: FoodType;
+  file: string;
+}
 
 @Entry
 @Component
@@ -19,7 +24,7 @@ struct GamePage {
   private timerId: number = -1;
   private cellSize: number = 20;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
-  private fruitImage: image.PixelMap | null = null;
+  private foodImages: Map<FoodType, image.PixelMap> = new Map();
 
   async aboutToAppear() {
     await this.loadGameSettings();
@@ -64,13 +69,30 @@ struct GamePage {
     try {
       const context = getContext(this);
       const resourceMgr = context.resourceManager;
-      const fileData = await resourceMgr.getRawFileContent('fruit.png');
-      const imageSource = image.createImageSource(fileData.buffer);
-      this.fruitImage = await imageSource.createPixelMap();
-      console.info('Fruit image loaded successfully');
+      
+      // 加载所有食物图片
+      const foodFiles: FoodImageConfig[] = [
+        { type: FoodType.FRUIT, file: 'fruit.png' } as FoodImageConfig,
+        { type: FoodType.ORANGE, file: 'orange.png' } as FoodImageConfig,
+        { type: FoodType.WATERMELON, file: 'watermelon.png' } as FoodImageConfig,
+        { type: FoodType.MUSHROOM, file: 'mushroom.png' } as FoodImageConfig
+      ];
+      
+      for (const food of foodFiles) {
+        try {
+          const fileData = await resourceMgr.getRawFileContent(food.file);
+          const imageSource = image.createImageSource(fileData.buffer);
+          const pixelMap = await imageSource.createPixelMap();
+          this.foodImages.set(food.type, pixelMap);
+          console.info(`${food.file} loaded successfully`);
+        } catch (err) {
+          console.error(`Failed to load ${food.file}:`, JSON.stringify(err));
+        }
+      }
+      
       this.drawGame();
     } catch (err) {
-      console.error('Failed to load fruit image:', JSON.stringify(err));
+      console.error('Failed to load food images:', JSON.stringify(err));
     }
   }
 
@@ -636,22 +658,24 @@ struct GamePage {
     const foods = this.game.getFoods();
     
     foods.forEach(food => {
-      if (this.fruitImage) {
+      const foodImage = this.foodImages.get(food.type);
+      
+      if (foodImage) {
         try {
           ctx.drawImage(
-            this.fruitImage,
-            food.x * this.cellSize,
-            food.y * this.cellSize,
+            foodImage,
+            food.position.x * this.cellSize,
+            food.position.y * this.cellSize,
             this.cellSize,
             this.cellSize
           );
         } catch (err) {
-          console.error('Failed to draw fruit image:', err);
+          console.error('Failed to draw food image:', err);
           // 绘制失败时使用红色方块
           ctx.fillStyle = '#FF0000';
           ctx.fillRect(
-            food.x * this.cellSize + 1,
-            food.y * this.cellSize + 1,
+            food.position.x * this.cellSize + 1,
+            food.position.y * this.cellSize + 1,
             this.cellSize - 2,
             this.cellSize - 2
           );
@@ -660,8 +684,8 @@ struct GamePage {
         // 图片未加载时使用红色方块
         ctx.fillStyle = '#FF0000';
         ctx.fillRect(
-          food.x * this.cellSize + 1,
-          food.y * this.cellSize + 1,
+          food.position.x * this.cellSize + 1,
+          food.position.y * this.cellSize + 1,
           this.cellSize - 2,
           this.cellSize - 2
         );

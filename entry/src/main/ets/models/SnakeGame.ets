@@ -10,9 +10,17 @@ export interface Position {
   y: number;
 }
 
+export enum FoodType {
+  FRUIT,
+  ORANGE,
+  WATERMELON,
+  MUSHROOM
+}
+
 interface FoodItem {
   position: Position;
   createTime: number;
+  type: FoodType;
 }
 
 export class SnakeGame {
@@ -83,8 +91,8 @@ export class SnakeGame {
     return this.snake;
   }
 
-  getFoods(): Position[] {
-    return this.foods.map(f => f.position);
+  getFoods(): FoodItem[] {
+    return this.foods;
   }
 
   getScore(): number {
@@ -155,9 +163,14 @@ export class SnakeGame {
       };
     } while (this.isPositionOccupied(newFood));
     
+    // 随机选择食物类型
+    const foodTypes = [FoodType.FRUIT, FoodType.ORANGE, FoodType.WATERMELON, FoodType.MUSHROOM];
+    const randomType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+    
     this.foods.push({
       position: newFood,
-      createTime: Date.now()
+      createTime: Date.now(),
+      type: randomType
     });
   }
 
