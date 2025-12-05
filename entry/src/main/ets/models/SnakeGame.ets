@@ -10,10 +10,15 @@ export interface Position {
   y: number;
 }
 
+interface FoodItem {
+  position: Position;
+  createTime: number;
+}
+
 export class SnakeGame {
   private gridSize: number = 20;
   private snake: Position[] = [];
-  private food: Position = { x: 0, y: 0 };
+  private foods: FoodItem[] = [];
   private direction: Direction = Direction.RIGHT;
   private nextDirection: Direction = Direction.RIGHT;
   private score: number = 0;
@@ -21,6 +26,9 @@ export class SnakeGame {
   private speed: number = 200;
   private startTime: number = 0;
   private survivalTime: number = 0;
+  private lastFoodSpawnTime: number = 0;
+  private readonly FOOD_SPAWN_INTERVAL: number = 4000; // 4秒
+  private readonly FOOD_LIFETIME: number = 10000; // 10秒
 
   constructor(speed: number = 200, gridSize: number = 20) {
     this.speed = speed;
@@ -42,7 +50,9 @@ export class SnakeGame {
     this.isGameOver = false;
     this.startTime = Date.now();
     this.survivalTime = 0;
-    this.generateFood();
+    this.foods = [];
+    this.lastFoodSpawnTime = Date.now();
+    this.spawnFood();
   }
 
   startTimer() {
@@ -73,8 +83,8 @@ export class SnakeGame {
     return this.snake;
   }
 
-  getFood(): Position {
-    return this.food;
+  getFoods(): Position[] {
+    return this.foods.map(f => f.position);
   }
 
   getScore(): number {
@@ -136,25 +146,56 @@ export class SnakeGame {
     return this.direction;
   }
 
-  private generateFood() {
+  private spawnFood() {
     let newFood: Position;
     do {
       newFood = {
         x: Math.floor(Math.random() * this.gridSize),
         y: Math.floor(Math.random() * this.gridSize)
       };
-    } while (this.isPositionOnSnake(newFood));
-    this.food = newFood;
+    } while (this.isPositionOccupied(newFood));
+    
+    this.foods.push({
+      position: newFood,
+      createTime: Date.now()
+    });
   }
 
   private isPositionOnSnake(pos: Position): boolean {
     return this.snake.some(segment => segment.x === pos.x && segment.y === pos.y);
   }
 
+  private isPositionOccupied(pos: Position): boolean {
+    // 检查是否在蛇身上或已有食物位置
+    if (this.isPositionOnSnake(pos)) return true;
+    return this.foods.some(f => f.position.x === pos.x && f.position.y === pos.y);
+  }
+
+  private updateFoods() {
+    const currentTime = Date.now();
+    
+    // 移除超过10秒的食物
+    this.foods = this.foods.filter(f => currentTime - f.createTime < this.FOOD_LIFETIME);
+    
+    // 确保至少有一个食物
+    if (this.foods.length === 0) {
+      this.spawnFood();
+      this.lastFoodSpawnTime = currentTime;
+      return;
+    }
+    
+    // 每4秒生成新食物
+    if (currentTime - this.lastFoodSpawnTime >= this.FOOD_SPAWN_INTERVAL) {
+      this.spawnFood();
+      this.lastFoodSpawnTime = currentTime;
+    }
+  }
+
   update(): boolean {
     if (this.isGameOver) return false;
 
     this.updateSurvivalTime();
+    this.updateFoods();
     this.direction = this.nextDirection;
 
     const head = this.snake[0];
@@ -190,11 +231,18 @@ export class SnakeGame {
 
     this.snake.unshift(newHead);
 
-    // 检查是否吃到食物
-    if (newHead.x === this.food.x && newHead.y === this.food.y) {
-      this.score += 10;
-      this.generateFood();
-    } else {
+    // 检查是否吃到任何食物
+    let ateFood = false;
+    for (let i = this.foods.length - 1; i >= 0; i--) {
+      if (newHead.x === this.foods[i].position.x && newHead.y === this.foods[i].position.y) {
+        this.score += 10;
+        this.foods.splice(i, 1);
+        ateFood = true;
+        break;
+      }
+    }
+
+    if (!ateFood) {
       this.snake.pop();
     }
 

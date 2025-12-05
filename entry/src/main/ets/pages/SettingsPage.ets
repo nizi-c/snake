@@ -81,7 +81,7 @@ struct SettingsPage {
           Slider({
             value: this.gridSize,
             min: 10,
-            max: 50,
+            max: 30,
             step: 1,
             style: SliderStyle.OutSet
           })
@@ -138,7 +138,14 @@ struct SettingsPage {
           .margin({ top: 30 })
           .onClick(async () => {
             await this.saveSettings();
-            router.back();
+            // 返回并传递新的网格大小
+            router.back({
+              url: 'pages/GamePage',
+              params: {
+                gridSize: this.gridSize,
+                reload: true
+              }
+            });
           })
       }
       .width('100%')

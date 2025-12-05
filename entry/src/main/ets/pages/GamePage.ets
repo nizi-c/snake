@@ -15,15 +15,30 @@ struct GamePage {
   @State controlMode: string = 'button'; // 'button' 或 'click'
   @State showControlDialog: boolean = false;
   @State showMenuDialog: boolean = false;
+  @State dialogSize: number = 300;
   private timerId: number = -1;
   private cellSize: number = 20;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
   private fruitImage: image.PixelMap | null = null;
 
   async aboutToAppear() {
-    const params = router.getParams() as Record<string, string>;
-    this.gameMode = params?.mode || 'casual';
+    await this.loadGameSettings();
+  }
+
+  async loadGameSettings() {
+    const params = router.getParams() as Record<string, Object>;
+    this.gameMode = (params?.mode as string) || 'casual';
     const speed = this.gameMode === 'challenge' ? 100 : 200;
+    
+    // 检查是否从设置页面返回
+    if (params?.reload && params?.gridSize) {
+      const gridSize = params.gridSize as number;
+      console.info('Reloading game with new grid size:', gridSize);
+      this.game = new SnakeGame(speed, gridSize);
+      this.stopGame();
+      this.drawGame();
+      return;
+    }
     
     // 加载设置
     try {
@@ -34,6 +49,14 @@ struct GamePage {
     } catch (err) {
       console.error('Failed to load settings:', err);
       this.game = new SnakeGame(speed);
+    }
+  }
+
+  onPageShow() {
+    // 页面显示时检查是否需要重新加载
+    const params = router.getParams() as Record<string, Object>;
+    if (params?.reload && params?.gridSize) {
+      this.loadGameSettings();
     }
   }
 
@@ -201,10 +224,17 @@ struct GamePage {
           this.showMenuDialog = false;
         })
     }
-    .width('85%')
+    .width(this.dialogSize)
+    .height(this.dialogSize)
     .padding(25)
     .backgroundColor('#FFFFFF')
     .borderRadius(16)
+    .justifyContent(FlexAlign.Center)
+    .onAreaChange((oldValue: Area, newValue: Area) => {
+      // 当区域改变时，确保保持正方形
+      const width = newValue.width as number;
+      this.dialogSize = Math.min(width, 400);
+    })
   }
 
   @Builder
@@ -292,10 +322,17 @@ struct GamePage {
           this.showControlDialog = false;
         })
     }
-    .width('85%')
+    .width(this.dialogSize)
+    .height(this.dialogSize)
     .padding(25)
     .backgroundColor('#FFFFFF')
     .borderRadius(16)
+    .justifyContent(FlexAlign.Center)
+    .onAreaChange((oldValue: Area, newValue: Area) => {
+      // 当区域改变时，确保保持正方形
+      const width = newValue.width as number;
+      this.dialogSize = Math.min(width, 400);
+    })
   }
 
   build() {
@@ -476,6 +513,7 @@ struct GamePage {
                 .height(80)
                 .fontSize(32)
                 .backgroundColor('#2196F3')
+                .opacity(0.4)
                 .onClick(() => this.handleDirection(Direction.UP))
             }
             .width('100%')
@@ -488,6 +526,7 @@ struct GamePage {
                 .height(80)
                 .fontSize(32)
                 .backgroundColor('#2196F3')
+                .opacity(0.4)
                 .margin({ right: 10 })
                 .onClick(() => this.handleDirection(Direction.LEFT))
 
@@ -496,6 +535,7 @@ struct GamePage {
                 .height(80)
                 .fontSize(32)
                 .backgroundColor('#2196F3')
+                .opacity(0.4)
                 .margin({ right: 10 })
                 .onClick(() => this.handleDirection(Direction.DOWN))
 
@@ -504,6 +544,7 @@ struct GamePage {
                 .height(80)
                 .fontSize(32)
                 .backgroundColor('#2196F3')
+                .opacity(0.4)
                 .onClick(() => this.handleDirection(Direction.RIGHT))
             }
             .width('100%')
@@ -511,7 +552,7 @@ struct GamePage {
           }
           .width('100%')
           .padding({ top: 20, bottom: 40 })
-          .backgroundColor('#F5F5F5')
+          .backgroundColor(Color.Transparent)
         }
       }
       .width('100%')
@@ -529,6 +570,11 @@ struct GamePage {
         .alignItems(HorizontalAlign.Center)
         .onClick(() => {
           this.showMenuDialog = false;
+        })
+        .onAreaChange((oldValue: Area, newValue: Area) => {
+          // 根据屏幕宽度调整弹窗大小
+          const screenWidth = newValue.width as number;
+          this.dialogSize = Math.min(screenWidth * 0.8, 400);
         })
       }
 
@@ -587,20 +633,31 @@ struct GamePage {
     });
 
     // 绘制食物
-    const food = this.game.getFood();
+    const foods = this.game.getFoods();
     
-    if (this.fruitImage) {
-      try {
-        ctx.drawImage(
-          this.fruitImage,
-          food.x * this.cellSize,
-          food.y * this.cellSize,
-          this.cellSize,
-          this.cellSize
-        );
-      } catch (err) {
-        console.error('Failed to draw fruit image:', err);
-        // 绘制失败时使用红色方块
+    foods.forEach(food => {
+      if (this.fruitImage) {
+        try {
+          ctx.drawImage(
+            this.fruitImage,
+            food.x * this.cellSize,
+            food.y * this.cellSize,
+            this.cellSize,
+            this.cellSize
+          );
+        } catch (err) {
+          console.error('Failed to draw fruit image:', err);
+          // 绘制失败时使用红色方块
+          ctx.fillStyle = '#FF0000';
+          ctx.fillRect(
+            food.x * this.cellSize + 1,
+            food.y * this.cellSize + 1,
+            this.cellSize - 2,
+            this.cellSize - 2
+          );
+        }
+      } else {
+        // 图片未加载时使用红色方块
         ctx.fillStyle = '#FF0000';
         ctx.fillRect(
           food.x * this.cellSize + 1,
@@ -609,15 +666,6 @@ struct GamePage {
           this.cellSize - 2
         );
       }
-    } else {
-      // 图片未加载时使用红色方块
-      ctx.fillStyle = '#FF0000';
-      ctx.fillRect(
-        food.x * this.cellSize + 1,
-        food.y * this.cellSize + 1,
-        this.cellSize - 2,
-        this.cellSize - 2
-      );
-    }
+    });
   }
 }
