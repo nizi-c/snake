@@ -64,9 +64,11 @@ struct GamePage {
       }
       if (params?.character) {
         characterImage = params.character as string;
-        await this.loadCharacterImage(characterImage);
       }
       console.info('Reloading game with new settings - gridWidth:', gridWidth, 'gridHeight:', gridHeight, 'baseSpeed:', baseSpeed, 'character:', characterImage);
+      
+      // 先加载角色图片，再创建游戏和绘制
+      await this.loadCharacterImage(characterImage);
       this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
       this.stopGame();
       this.drawGame();
@@ -81,14 +83,20 @@ struct GamePage {
       gridHeight = await prefs.get('gridHeight', 15) as number;
       characterImage = await prefs.get('character', 'cat.png') as string;
       
+      console.info('Loaded character from preferences:', characterImage);
+      
       // 只在休闲模式使用自定义速度，挑战模式固定为100ms
       if (this.gameMode === 'casual') {
         baseSpeed = await prefs.get('baseSpeed', 200) as number;
       }
       
+      // 加载角色图片
+      await this.loadCharacterImage(characterImage);
       this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
+      console.info('Game created with character:', characterImage);
     } catch (err) {
       console.error('Failed to load settings:', err);
+      await this.loadCharacterImage(characterImage);
       this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
     }
   }
@@ -143,14 +151,15 @@ struct GamePage {
         console.error('Failed to load cart.png:', JSON.stringify(err));
       }
       
-      // 加载蛇头图片
+      // 加载蛇头图片（根据当前游戏角色）
+      const characterFile = this.game.getCharacter();
       try {
-        const catData = await resourceMgr.getRawFileContent('cat.png');
+        const catData = await resourceMgr.getRawFileContent(characterFile);
         const catSource = image.createImageSource(catData.buffer);
         this.catImage = await catSource.createPixelMap();
-        console.info('cat.png loaded successfully');
+        console.info(`${characterFile} loaded successfully in loadFruitImage`);
       } catch (err) {
-        console.error('Failed to load cat.png:', JSON.stringify(err));
+        console.error(`Failed to load ${characterFile}:`, JSON.stringify(err));
       }
       
       this.drawGame();

@@ -36,11 +36,12 @@ export class SnakeGame {
   private isGameOver: boolean = false;
   private speed: number = 200;
   private baseSpeed: number = 200;
+  private originalSpeed: number = 200; // 保存原始设定速度（用于计算速度比率）
   private speedMultiplier: number = 1.0; // 速度倍数（由食物效果累积）
   private startTime: number = 0;
   private survivalTime: number = 0;
   private lastFoodSpawnTime: number = 0;
-  private readonly FOOD_SPAWN_INTERVAL: number = 4000; // 4秒
+  private readonly FOOD_SPAWN_INTERVAL: number = 2000; // 2秒
   private readonly FOOD_LIFETIME: number = 10000; // 10秒
   private character: string = 'cat.png'; // 当前角色
   private mushroomImmunity: number = 0; // 蘑菇免疫次数
@@ -48,6 +49,7 @@ export class SnakeGame {
   constructor(speed: number = 200, gridWidth: number = 22, gridHeight: number = 15, character: string = 'cat.png') {
     this.speed = speed;
     this.baseSpeed = speed;
+    this.originalSpeed = speed; // 保存原始速度
     this.gridWidth = gridWidth;
     this.gridHeight = gridHeight;
     this.character = character;
@@ -82,13 +84,19 @@ export class SnakeGame {
         this.mushroomImmunity = 3; // 小猫：免疫3次蘑菇扣分
         break;
       case 'dog.png':
-        // 小狗的特性（待添加）
+        // 小狗：基础速度加快10%（时间减少10%）
+        this.baseSpeed = Math.floor(this.baseSpeed * 0.9);
+        this.speed = this.baseSpeed;
         break;
       case 'rabbit.png':
-        // 兔子的特性（待添加）
+        // 兔子：速度变化效果翻倍，分数效果+50%
+        // 特性在吃食物时应用
         break;
       case 'cangshu.png':
-        // 仓鼠的特性（待添加）
+        // 仓鼠：初始100分，速度减慢10%
+        this.score = 100;
+        this.baseSpeed = Math.floor(this.baseSpeed * 1.1);
+        this.speed = this.baseSpeed;
         break;
       default:
         this.mushroomImmunity = 0;
@@ -167,12 +175,11 @@ export class SnakeGame {
   }
 
   getCurrentSpeedRatio(): number {
-    // 返回当前速度相对于初始速度的比率
+    // 返回当前速度相对于原始设定速度的比率
     // 速度越快，比率越大（因为时间间隔越小）
-    const speedLevel = Math.floor(this.score / 50);
-    const scoreSpeedMultiplier = Math.pow(0.9, speedLevel);
-    // 实际速度比率 = 1 / (scoreSpeedMultiplier * speedMultiplier)
-    return 1.0 / (scoreSpeedMultiplier * this.speedMultiplier);
+    const currentSpeed = this.getSpeed();
+    // 速度比率 = 原始速度 / 当前速度
+    return this.originalSpeed / currentSpeed;
   }
 
   isOver(): boolean {
@@ -284,14 +291,31 @@ export class SnakeGame {
 
   private getFoodSpeedEffect(type: FoodType): number {
     // 返回速度倍数变化
+    let speedEffect = 1.0;
     switch (type) {
       case FoodType.LEMON:
-        return 1.1; // 减速10%（时间增加10%）
+        speedEffect = 1.1; // 减速10%（时间增加10%）
+        break;
       case FoodType.FLOWER:
-        return 0.9; // 加速10%（时间减少10%）
+        speedEffect = 0.9; // 加速10%（时间减少10%）
+        break;
       default:
-        return 1.0; // 无影响
+        speedEffect = 1.0; // 无影响
     }
+    
+    // 兔子特性：速度变化效果翻倍
+    if (this.character === 'rabbit.png' && speedEffect !== 1.0) {
+      if (speedEffect > 1.0) {
+        // 减速效果翻倍：1.1 → 1.2
+        speedEffect = 1.0 + (speedEffect - 1.0) * 2;
+      } else {
+        // 加速效果翻倍：0.9 → 0.8
+        speedEffect = 1.0 - (1.0 - speedEffect) * 2;
+      }
+      console.info(`Rabbit speed effect doubled to ${speedEffect}`);
+    }
+    
+    return speedEffect;
   }
 
   private isPositionOnSnake(pos: Position): boolean {
@@ -377,6 +401,24 @@ export class SnakeGame {
           this.mushroomImmunity--;
           scoreChange = 0; // 免疫扣分
           console.info(`Cat immunity activated! Remaining: ${this.mushroomImmunity}`);
+        }
+        
+        // 小狗特性：食物加分减分效果翻倍
+        if (this.character === 'dog.png' && scoreChange !== 0) {
+          scoreChange *= 2;
+          console.info(`Dog bonus: score doubled to ${scoreChange}`);
+        }
+        
+        // 仓鼠特性：减分+200%
+        if (this.character === 'cangshu.png' && scoreChange < 0) {
+          scoreChange = Math.floor(scoreChange * 3); // 减分增加200%（变为3倍）
+          console.info(`Hamster penalty: negative score increased to ${scoreChange}`);
+        }
+        
+        // 兔子特性：分数效果+50%
+        if (this.character === 'rabbit.png' && scoreChange !== 0) {
+          scoreChange = Math.floor(scoreChange * 1.5);
+          console.info(`Rabbit bonus: score effect increased to ${scoreChange}`);
         }
         
         this.score += scoreChange;
