@@ -3,6 +3,7 @@
     "pages/Index",
     "pages/HomePage",
     "pages/GamePage",
-    "pages/SettingsPage"
+    "pages/SettingsPage",
+    "pages/CharacterSelectPage"
   ]
 }

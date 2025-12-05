@@ -20,14 +20,26 @@ struct GamePage {
   @State controlMode: string = 'button'; // 'button' 或 'click'
   @State showControlDialog: boolean = false;
   @State showMenuDialog: boolean = false;
+  @State showCharacterDialog: boolean = false;
   @State dialogSize: number = 300;
+  @State currentCharacter: string = 'cat'; // 当前角色：cat, dog, rabbit, hamster
   private timerId: number = -1;
-  private cellSize: number = 20;
+  private cellSize: number = 30;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
   private foodImages: Map<FoodType, image.PixelMap> = new Map();
+  private cartImage: image.PixelMap | null = null;
+  private catImage: image.PixelMap | null = null;
 
   async aboutToAppear() {
     await this.loadGameSettings();
+  }
+
+  onPageShow() {
+    // 页面显示时检查是否需要重新加载
+    const params = router.getParams() as Record<string, Object>;
+    if (params?.reload) {
+      this.loadGameSettings();
+    }
   }
 
   async loadGameSettings() {
@@ -35,18 +47,27 @@ struct GamePage {
     this.gameMode = (params?.mode as string) || 'casual';
     
     let baseSpeed = this.gameMode === 'challenge' ? 100 : 200;
-    let gridSize = 20;
+    let gridWidth = 22;
+    let gridHeight = 15;
+    let characterImage = 'cat.png';
     
-    // 检查是否从设置页面返回
+    // 检查是否从设置页面或角色选择页面返回
     if (params?.reload) {
-      if (params?.gridSize) {
-        gridSize = params.gridSize as number;
+      if (params?.gridWidth) {
+        gridWidth = params.gridWidth as number;
+      }
+      if (params?.gridHeight) {
+        gridHeight = params.gridHeight as number;
       }
       if (params?.baseSpeed) {
         baseSpeed = params.baseSpeed as number;
       }
-      console.info('Reloading game with new settings - gridSize:', gridSize, 'baseSpeed:', baseSpeed);
-      this.game = new SnakeGame(baseSpeed, gridSize);
+      if (params?.character) {
+        characterImage = params.character as string;
+        await this.loadCharacterImage(characterImage);
+      }
+      console.info('Reloading game with new settings - gridWidth:', gridWidth, 'gridHeight:', gridHeight, 'baseSpeed:', baseSpeed, 'character:', characterImage);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight);
       this.stopGame();
       this.drawGame();
       return;
@@ -56,25 +77,32 @@ struct GamePage {
     try {
       const context = getContext(this);
       const prefs = await preferences.getPreferences(context, 'snake_settings');
-      gridSize = await prefs.get('gridSize', 20) as number;
+      gridWidth = await prefs.get('gridWidth', 22) as number;
+      gridHeight = await prefs.get('gridHeight', 15) as number;
+      characterImage = await prefs.get('character', 'cat.png') as string;
       
       // 只在休闲模式使用自定义速度，挑战模式固定为100ms
       if (this.gameMode === 'casual') {
         baseSpeed = await prefs.get('baseSpeed', 200) as number;
       }
       
-      this.game = new SnakeGame(baseSpeed, gridSize);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight);
     } catch (err) {
       console.error('Failed to load settings:', err);
-      this.game = new SnakeGame(baseSpeed, gridSize);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight);
     }
   }
 
-  onPageShow() {
-    // 页面显示时检查是否需要重新加载
-    const params = router.getParams() as Record<string, Object>;
-    if (params?.reload && params?.gridSize) {
-      this.loadGameSettings();
+  async loadCharacterImage(characterFile: string) {
+    try {
+      const context = getContext(this);
+      const resourceMgr = context.resourceManager;
+      const catData = await resourceMgr.getRawFileContent(characterFile);
+      const catSource = image.createImageSource(catData.buffer);
+      this.catImage = await catSource.createPixelMap();
+      console.info(`${characterFile} loaded successfully`);
+    } catch (err) {
+      console.error(`Failed to load ${characterFile}:`, JSON.stringify(err));
     }
   }
 
@@ -105,9 +133,29 @@ struct GamePage {
         }
       }
       
+      // 加载蛇身图片
+      try {
+        const cartData = await resourceMgr.getRawFileContent('cart.png');
+        const cartSource = image.createImageSource(cartData.buffer);
+        this.cartImage = await cartSource.createPixelMap();
+        console.info('cart.png loaded successfully');
+      } catch (err) {
+        console.error('Failed to load cart.png:', JSON.stringify(err));
+      }
+      
+      // 加载蛇头图片
+      try {
+        const catData = await resourceMgr.getRawFileContent('cat.png');
+        const catSource = image.createImageSource(catData.buffer);
+        this.catImage = await catSource.createPixelMap();
+        console.info('cat.png loaded successfully');
+      } catch (err) {
+        console.error('Failed to load cat.png:', JSON.stringify(err));
+      }
+      
       this.drawGame();
     } catch (err) {
-      console.error('Failed to load food images:', JSON.stringify(err));
+      console.error('Failed to load images:', JSON.stringify(err));
     }
   }
 
@@ -230,6 +278,21 @@ struct GamePage {
         .fontWeight(FontWeight.Bold)
         .margin({ bottom: 20 })
 
+      // 角色选择按钮
+      Button('角色选择')
+        .width('100%')
+        .height(50)
+        .fontSize(18)
+        .backgroundColor('#FF5722')
+        .margin({ bottom: 15 })
+        .onClick(() => {
+          this.showMenuDialog = false;
+          this.stopGame();
+          router.pushUrl({
+            url: 'pages/CharacterSelectPage'
+          });
+        })
+
       // 控制方式按钮
       Button('控制方式')
         .width('100%')
@@ -269,17 +332,10 @@ struct GamePage {
           this.showMenuDialog = false;
         })
     }
-    .width(this.dialogSize)
-    .height(this.dialogSize)
+    .width('60%')
     .padding(25)
     .backgroundColor('#FFFFFF')
     .borderRadius(16)
-    .justifyContent(FlexAlign.Center)
-    .onAreaChange((oldValue: Area, newValue: Area) => {
-      // 当区域改变时，确保保持正方形
-      const width = newValue.width as number;
-      this.dialogSize = Math.min(width, 400);
-    })
   }
 
   @Builder
@@ -485,8 +541,8 @@ struct GamePage {
         // 游戏区域
         Column() {
           Canvas(this.canvasContext)
-            .width(this.game.getGridSize() * this.cellSize)
-            .height(this.game.getGridSize() * this.cellSize)
+            .width(this.game.getGridWidth() * this.cellSize)
+            .height(this.game.getGridHeight() * this.cellSize)
             .backgroundColor('#000000')
             .onReady(() => {
               this.loadFruitImage();
@@ -658,37 +714,95 @@ struct GamePage {
 
   private drawGame() {
     const ctx = this.canvasContext;
-    const gridSize = this.game.getGridSize();
+    const gridWidth = this.game.getGridWidth();
+    const gridHeight = this.game.getGridHeight();
 
     // 清空画布
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, gridSize * this.cellSize, gridSize * this.cellSize);
+    ctx.fillRect(0, 0, gridWidth * this.cellSize, gridHeight * this.cellSize);
 
     // 绘制网格线
     ctx.strokeStyle = '#333333';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= gridSize; i++) {
+    for (let i = 0; i <= gridWidth; i++) {
       ctx.beginPath();
       ctx.moveTo(i * this.cellSize, 0);
-      ctx.lineTo(i * this.cellSize, gridSize * this.cellSize);
+      ctx.lineTo(i * this.cellSize, gridHeight * this.cellSize);
       ctx.stroke();
-
+    }
+    for (let i = 0; i <= gridHeight; i++) {
       ctx.beginPath();
       ctx.moveTo(0, i * this.cellSize);
-      ctx.lineTo(gridSize * this.cellSize, i * this.cellSize);
+      ctx.lineTo(gridWidth * this.cellSize, i * this.cellSize);
       ctx.stroke();
     }
 
     // 绘制蛇
     const snake = this.game.getSnake();
     snake.forEach((segment, index) => {
-      ctx.fillStyle = index === 0 ? '#00FF00' : '#00CC00';
-      ctx.fillRect(
-        segment.x * this.cellSize + 1,
-        segment.y * this.cellSize + 1,
-        this.cellSize - 2,
-        this.cellSize - 2
-      );
+      if (index === 0) {
+        // 蛇头使用cat2图片
+        if (this.catImage) {
+          try {
+            ctx.drawImage(
+              this.catImage,
+              segment.x * this.cellSize,
+              segment.y * this.cellSize,
+              this.cellSize,
+              this.cellSize
+            );
+          } catch (err) {
+            console.error('Failed to draw cat image:', err);
+            // 绘制失败时使用绿色方块
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(
+              segment.x * this.cellSize + 1,
+              segment.y * this.cellSize + 1,
+              this.cellSize - 2,
+              this.cellSize - 2
+            );
+          }
+        } else {
+          // 图片未加载时使用绿色方块
+          ctx.fillStyle = '#00FF00';
+          ctx.fillRect(
+            segment.x * this.cellSize + 1,
+            segment.y * this.cellSize + 1,
+            this.cellSize - 2,
+            this.cellSize - 2
+          );
+        }
+      } else if (this.cartImage) {
+        // 蛇身和蛇尾使用cart图片
+        try {
+          ctx.drawImage(
+            this.cartImage,
+            segment.x * this.cellSize,
+            segment.y * this.cellSize,
+            this.cellSize,
+            this.cellSize
+          );
+        } catch (err) {
+          console.error('Failed to draw cart image:', err);
+          // 绘制失败时使用绿色方块
+          ctx.fillStyle = '#00CC00';
+          ctx.fillRect(
+            segment.x * this.cellSize + 1,
+            segment.y * this.cellSize + 1,
+            this.cellSize - 2,
+            this.cellSize - 2
+          );
+        }
+      } else {
+        // 图片未加载时使用绿色方块
+        ctx.fillStyle = '#00CC00';
+        ctx.fillRect(
+          segment.x * this.cellSize + 1,
+          segment.y * this.cellSize + 1,
+          this.cellSize - 2,
+          this.cellSize - 2
+        );
+      }
     });
 
     // 绘制食物

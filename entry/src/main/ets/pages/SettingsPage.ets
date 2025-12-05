@@ -4,7 +4,8 @@ import preferences from '@ohos.data.preferences';
 @Entry
 @Component
 struct SettingsPage {
-  @State gridSize: number = 20;
+  @State gridWidth: number = 22;
+  @State gridHeight: number = 15;
   @State baseSpeed: number = 200;
 
   async aboutToAppear() {
@@ -15,7 +16,8 @@ struct SettingsPage {
     try {
       const context = getContext(this);
       const prefs = await preferences.getPreferences(context, 'snake_settings');
-      this.gridSize = await prefs.get('gridSize', 20) as number;
+      this.gridWidth = await prefs.get('gridWidth', 22) as number;
+      this.gridHeight = await prefs.get('gridHeight', 15) as number;
       this.baseSpeed = await prefs.get('baseSpeed', 200) as number;
     } catch (err) {
       console.error('Failed to load settings:', err);
@@ -26,7 +28,8 @@ struct SettingsPage {
     try {
       const context = getContext(this);
       const prefs = await preferences.getPreferences(context, 'snake_settings');
-      await prefs.put('gridSize', this.gridSize);
+      await prefs.put('gridWidth', this.gridWidth);
+      await prefs.put('gridHeight', this.gridHeight);
       await prefs.put('baseSpeed', this.baseSpeed);
       await prefs.flush();
       console.info('Settings saved successfully');
@@ -66,9 +69,10 @@ struct SettingsPage {
       .padding({ left: 20, right: 20 })
       .backgroundColor('#FFFFFF')
 
-      // 设置内容
-      Column() {
-        // 游戏区域大小设置
+      // 设置内容（可滚动）
+      Scroll() {
+        Column() {
+          // 游戏区域大小设置
         Column() {
           Text('游戏区域大小')
             .fontSize(18)
@@ -76,12 +80,13 @@ struct SettingsPage {
             .width('100%')
             .margin({ bottom: 15 })
 
+          // 宽度设置
           Row() {
-            Text('网格数量')
+            Text('宽度（横向格子数）')
               .fontSize(16)
               .layoutWeight(1)
 
-            Text(`${this.gridSize} x ${this.gridSize}`)
+            Text(`${this.gridWidth}`)
               .fontSize(16)
               .fontColor('#666666')
           }
@@ -89,7 +94,7 @@ struct SettingsPage {
           .margin({ bottom: 10 })
 
           Slider({
-            value: this.gridSize,
+            value: this.gridWidth,
             min: 10,
             max: 30,
             step: 1,
@@ -101,10 +106,40 @@ struct SettingsPage {
             .showSteps(false)
             .showTips(true)
             .onChange((value: number) => {
-              this.gridSize = Math.round(value);
+              this.gridWidth = Math.round(value);
+            })
+            .margin({ bottom: 20 })
+
+          // 高度设置
+          Row() {
+            Text('高度（纵向格子数）')
+              .fontSize(16)
+              .layoutWeight(1)
+
+            Text(`${this.gridHeight}`)
+              .fontSize(16)
+              .fontColor('#666666')
+          }
+          .width('100%')
+          .margin({ bottom: 10 })
+
+          Slider({
+            value: this.gridHeight,
+            min: 10,
+            max: 20,
+            step: 1,
+            style: SliderStyle.OutSet
+          })
+            .width('100%')
+            .trackColor('#E0E0E0')
+            .selectedColor('#2196F3')
+            .showSteps(false)
+            .showTips(true)
+            .onChange((value: number) => {
+              this.gridHeight = Math.round(value);
             })
 
-          Text('较小的网格会让游戏更简单，较大的网格会增加难度')
+          Text('可以设置不同的宽度和高度，充分利用屏幕空间')
             .fontSize(14)
             .fontColor('#999999')
             .width('100%')
@@ -172,7 +207,7 @@ struct SettingsPage {
             .margin({ bottom: 15 })
 
           Column() {
-            Text(`游戏区域: ${this.gridSize * this.gridSize} 个格子`)
+            Text(`游戏区域: ${this.gridWidth} x ${this.gridHeight} (${this.gridWidth * this.gridHeight} 个格子)`)
               .fontSize(14)
               .fontColor('#666666')
               .margin({ bottom: 8 })
@@ -202,29 +237,35 @@ struct SettingsPage {
         .backgroundColor('#FFFFFF')
         .borderRadius(12)
 
-        // 保存按钮
-        Button('保存设置')
-          .width('100%')
-          .height(50)
-          .fontSize(18)
-          .backgroundColor('#4CAF50')
-          .margin({ top: 30 })
-          .onClick(async () => {
-            await this.saveSettings();
-            // 返回并传递新的设置
-            router.back({
-              url: 'pages/GamePage',
-              params: {
-                gridSize: this.gridSize,
-                baseSpeed: this.baseSpeed,
-                reload: true
-              }
-            });
-          })
+          // 保存按钮
+          Button('保存设置')
+            .width('100%')
+            .height(50)
+            .fontSize(18)
+            .backgroundColor('#4CAF50')
+            .margin({ top: 30, bottom: 20 })
+            .onClick(async () => {
+              await this.saveSettings();
+              // 返回并传递新的设置
+              router.back({
+                url: 'pages/GamePage',
+                params: {
+                  gridWidth: this.gridWidth,
+                  gridHeight: this.gridHeight,
+                  baseSpeed: this.baseSpeed,
+                  reload: true
+                }
+              });
+            })
+        }
+        .width('100%')
+        .padding(20)
       }
       .width('100%')
       .layoutWeight(1)
-      .padding(20)
+      .scrollable(ScrollDirection.Vertical)
+      .scrollBar(BarState.Auto)
+      .edgeEffect(EdgeEffect.Spring)
       .backgroundColor('#F5F5F5')
     }
     .width('100%')

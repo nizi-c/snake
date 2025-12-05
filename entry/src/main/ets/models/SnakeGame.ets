@@ -26,7 +26,8 @@ interface FoodItem {
 }
 
 export class SnakeGame {
-  private gridSize: number = 20;
+  private gridWidth: number = 22;
+  private gridHeight: number = 15;
   private snake: Position[] = [];
   private foods: FoodItem[] = [];
   private direction: Direction = Direction.RIGHT;
@@ -42,16 +43,17 @@ export class SnakeGame {
   private readonly FOOD_SPAWN_INTERVAL: number = 4000; // 4秒
   private readonly FOOD_LIFETIME: number = 10000; // 10秒
 
-  constructor(speed: number = 200, gridSize: number = 20) {
+  constructor(speed: number = 200, gridWidth: number = 22, gridHeight: number = 15) {
     this.speed = speed;
     this.baseSpeed = speed;
-    this.gridSize = gridSize;
+    this.gridWidth = gridWidth;
+    this.gridHeight = gridHeight;
     this.init();
   }
 
   init() {
-    const centerX = Math.floor(this.gridSize / 2);
-    const centerY = Math.floor(this.gridSize / 2);
+    const centerX = Math.floor(this.gridWidth / 2);
+    const centerY = Math.floor(this.gridHeight / 2);
     this.snake = [
       { x: centerX, y: centerY },
       { x: centerX - 1, y: centerY },
@@ -89,8 +91,12 @@ export class SnakeGame {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
-  getGridSize(): number {
-    return this.gridSize;
+  getGridWidth(): number {
+    return this.gridWidth;
+  }
+
+  getGridHeight(): number {
+    return this.gridHeight;
   }
 
   getSnake(): Position[] {
@@ -192,8 +198,8 @@ export class SnakeGame {
     let newFood: Position;
     do {
       newFood = {
-        x: Math.floor(Math.random() * this.gridSize),
-        y: Math.floor(Math.random() * this.gridSize)
+        x: Math.floor(Math.random() * this.gridWidth),
+        y: Math.floor(Math.random() * this.gridHeight)
       };
     } while (this.isPositionOccupied(newFood));
     
@@ -312,8 +318,8 @@ export class SnakeGame {
     }
 
     // 检查撞墙
-    if (newHead.x < 0 || newHead.x >= this.gridSize ||
-      newHead.y < 0 || newHead.y >= this.gridSize) {
+    if (newHead.x < 0 || newHead.x >= this.gridWidth ||
+      newHead.y < 0 || newHead.y >= this.gridHeight) {
       this.isGameOver = true;
       return false;
     }
