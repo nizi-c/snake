@@ -6,6 +6,7 @@
     "pages/SettingsPage",
     "pages/CharacterSelectPage",
     "pages/HistoryPage",
-    "pages/ThemeSettingsPage"
+    "pages/ThemeSettingsPage",
+    "pages/ChallengeLevelPage"
   ]
 }

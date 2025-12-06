@@ -51,17 +51,24 @@ struct HomePage {
         Text('')
           .layoutWeight(1)
         
-        Button('⚙️ 设置')
-          .fontSize(16)
-          .backgroundColor(this.currentTheme.buttonSecondary)
-          .fontColor('#FFFFFF')
-          .borderRadius(20)
-          .padding({ left: 20, right: 20 })
-          .onClick(() => {
-            router.pushUrl({
-              url: 'pages/ThemeSettingsPage'
-            })
+        Row() {
+          Image($rawfile('setting.png'))
+            .width(20)
+            .height(20)
+            .margin({ right: 8 })
+          
+          Text('设置')
+            .fontSize(16)
+            .fontColor('#FFFFFF')
+        }
+        .backgroundColor(this.currentTheme.buttonSecondary)
+        .borderRadius(20)
+        .padding({ left: 20, right: 20, top: 10, bottom: 10 })
+        .onClick(() => {
+          router.pushUrl({
+            url: 'pages/ThemeSettingsPage'
           })
+        })
       }
       .width('100%')
       .padding({ top: 20, right: 20 })
@@ -98,8 +105,7 @@ struct HomePage {
         .shadow({ radius: 6, color: this.currentTheme.shadowColor })
         .onClick(() => {
           router.pushUrl({
-            url: 'pages/GamePage',
-            params: { mode: 'challenge' }
+            url: 'pages/ChallengeLevelPage'
           })
         })
       }

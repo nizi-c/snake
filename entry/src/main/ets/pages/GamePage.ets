@@ -30,11 +30,14 @@ struct GamePage {
   @State showControlDialog: boolean = false;
   @State showMenuDialog: boolean = false;
   @State showCharacterDialog: boolean = false;
+  @State showChallengeSuccessDialog: boolean = false;
+  @State showRulesDialog: boolean = false;
   @State dialogSize: number = 300;
   @State currentCharacter: string = 'cat'; // 当前角色：cat, dog, rabbit, hamster
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
   private themeManager: ThemeManager = ThemeManager.getInstance();
+  private hasShownSuccessDialog: boolean = false; // 标记是否已显示成功弹窗
   private timerId: number = -1;
   private cellSize: number = 30;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
@@ -85,12 +88,8 @@ struct GamePage {
   }
 
   updateBackgroundImage() {
-    // 只在休闲模式显示背景图片
-    if (this.gameMode === 'casual') {
-      this.bgImagePath = this.currentTheme.name === 'light' ? 'light.png' : 'dark.png';
-    } else {
-      this.bgImagePath = '';
-    }
+    // 休闲模式和挑战模式都显示背景图片
+    this.bgImagePath = this.currentTheme.name === 'light' ? 'light.png' : 'dark.png';
     console.info(`Game background image path set to: ${this.bgImagePath}`);
   }
 
@@ -123,6 +122,11 @@ struct GamePage {
     let gridHeight = 15;
     let characterImage = 'xiaomao.jpg';
     
+    // 挑战模式参数
+    const isChallengeMode = this.gameMode === 'challenge';
+    const timeLimit = (params?.timeLimit as number) || 180;
+    const targetScore = (params?.targetScore as number) || 0;
+    
     // 检查是否从设置页面或角色选择页面返回
     if (params?.reload) {
       if (params?.gridWidth) {
@@ -141,7 +145,7 @@ struct GamePage {
       
       // 先加载角色图片，再创建游戏和绘制
       await this.loadCharacterImage(characterImage);
-      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage, isChallengeMode, timeLimit, targetScore);
       this.stopGame();
       this.drawGame();
       return;
@@ -164,12 +168,12 @@ struct GamePage {
       
       // 加载角色图片
       await this.loadCharacterImage(characterImage);
-      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage, isChallengeMode, timeLimit, targetScore);
       console.info('Game created with character:', characterImage);
     } catch (err) {
       console.error('Failed to load settings:', err);
       await this.loadCharacterImage(characterImage);
-      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage);
+      this.game = new SnakeGame(baseSpeed, gridWidth, gridHeight, characterImage, isChallengeMode, timeLimit, targetScore);
     }
   }
 
@@ -288,6 +292,41 @@ struct GamePage {
     }
   }
 
+  async saveChallengeRecord() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      const params = router.getParams() as Record<string, Object>;
+      const levelId = (params?.levelId as number) || 1;
+      
+      // 获取当前关卡的最佳用时
+      const recordsStr = await prefs.get('challengeRecords', '{}') as string;
+      const records = JSON.parse(recordsStr) as Record<number, number>;
+      
+      // 计算用时（秒）
+      const usedTime = this.game.getTargetScore() > 0 ? 
+        (this.game.getTimeLimit() - this.game.getRemainingTime()) : 0;
+      
+      // 更新最佳用时（如果更快或首次完成）
+      if (!records[levelId] || usedTime < records[levelId]) {
+        records[levelId] = usedTime;
+      }
+      
+      await prefs.put('challengeRecords', JSON.stringify(records));
+      
+      // 解锁下一关
+      const unlockedLevel = await prefs.get('unlockedLevel', 1) as number;
+      if (levelId >= unlockedLevel) {
+        await prefs.put('unlockedLevel', levelId + 1);
+      }
+      
+      await prefs.flush();
+      console.info('Challenge record saved - Level:', levelId, 'Time:', usedTime);
+    } catch (err) {
+      console.error('Failed to save challenge record:', err);
+    }
+  }
+
   pauseGame() {
     this.isPaused = true;
     if (this.timerId !== -1) {
@@ -303,6 +342,8 @@ struct GamePage {
 
   restartGame() {
     this.stopGame();
+    this.hasShownSuccessDialog = false;
+    this.showChallengeSuccessDialog = false;
     this.game.init();
     this.startGame();
   }
@@ -314,6 +355,18 @@ struct GamePage {
     this.updateFlag++;
     this.currentTime = this.game.getFormattedTime();
     this.drawGame();
+
+    // 挑战模式：检查是否达到目标分数
+    if (this.game.isChallengeGameMode() && !this.hasShownSuccessDialog && 
+        this.game.getScore() >= this.game.getTargetScore()) {
+      this.hasShownSuccessDialog = true;
+      this.showChallengeSuccessDialog = true;
+      this.stopGame();
+      
+      // 保存挑战记录
+      this.saveChallengeRecord();
+      return;
+    }
 
     if (!success) {
       this.stopGame();
@@ -442,6 +495,19 @@ struct GamePage {
             });
           })
       }
+
+      // 规则介绍按钮
+      Button('规则介绍')
+        .width('100%')
+        .height(50)
+        .fontSize(18)
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.buttonPrimary)
+        .margin({ bottom: 15 })
+        .onClick(() => {
+          this.showMenuDialog = false;
+          this.showRulesDialog = true;
+        })
 
       // 历史记录按钮
       Button('历史记录')
@@ -579,6 +645,92 @@ struct GamePage {
     })
   }
 
+  @Builder
+  RulesDialog() {
+    Column() {
+      Text('休闲模式规则')
+        .fontSize(24)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.currentTheme.primaryText)
+        .margin({ bottom: 20 })
+
+      Scroll() {
+        Column() {
+          Text('🎮 游戏目标')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.currentTheme.primaryText)
+            .margin({ bottom: 10 })
+            .width('100%')
+
+          Text('控制小动物收集食物，获得尽可能高的分数和存活时间。')
+            .fontSize(14)
+            .fontColor(this.currentTheme.secondaryText)
+            .lineHeight(22)
+            .margin({ bottom: 15 })
+
+          Text('🍎 食物系统')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.currentTheme.primaryText)
+            .margin({ bottom: 10 })
+            .width('100%')
+
+          Text('• 苹果：+10分\n• 橙子：+20分\n• 西瓜：+30分\n• 柠檬：速度-10%\n• 花朵：速度+10%\n• 蘑菇：-20分')
+            .fontSize(14)
+            .fontColor(this.currentTheme.secondaryText)
+            .lineHeight(22)
+            .margin({ bottom: 15 })
+
+          Text('🐱 角色特性')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.currentTheme.primaryText)
+            .margin({ bottom: 10 })
+            .width('100%')
+
+          Text('• 小猫：免疫3次蘑菇扣分\n• 小狗：速度+10%，分数效果×2\n• 兔子：速度变化×2，分数效果+50%\n• 仓鼠：初始100分，速度-10%，减分+200%')
+            .fontSize(14)
+            .fontColor(this.currentTheme.secondaryText)
+            .lineHeight(22)
+            .margin({ bottom: 15 })
+
+          Text('⚡ 速度机制')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.currentTheme.primaryText)
+            .margin({ bottom: 10 })
+            .width('100%')
+
+          Text('每获得50分，速度自动提升10%，增加挑战难度。')
+            .fontSize(14)
+            .fontColor(this.currentTheme.secondaryText)
+            .lineHeight(22)
+        }
+        .width('100%')
+      }
+      .layoutWeight(1)
+      .width('100%')
+
+      Button('知道了')
+        .width('100%')
+        .height(50)
+        .fontSize(18)
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.buttonPrimary)
+        .margin({ top: 15 })
+        .onClick(() => {
+          this.showRulesDialog = false;
+        })
+    }
+    .width('85%')
+    .height('70%')
+    .padding(25)
+    .backgroundColor(this.currentTheme.secondaryBg)
+    .borderRadius(16)
+    .shadow({ radius: 10, color: this.currentTheme.shadowColor })
+  }
+
   build() {
     Stack() {
       // 背景图片（仅休闲模式）- 放在最外层占满整个页面
@@ -613,14 +765,40 @@ struct GamePage {
 
             Row() {
               Column() {
-                Text(`得分: ${this.game.getScore()}`)
-                  .fontSize(18)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.primaryText)
-                
-                Text(`速度: ${this.game.getCurrentSpeedRatio().toFixed(1)}x`)
-                  .fontSize(14)
-                  .fontColor(this.getSpeedColor())
+                if (this.game.isChallengeGameMode()) {
+                  // 挑战模式：显示生命和目标分数
+                  Row() {
+                    Image($rawfile('heart.png'))
+                      .width(20)
+                      .height(20)
+                      .margin({ right: 5 })
+                    
+                    Text(`× ${this.game.getLives()}`)
+                      .fontSize(18)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(this.currentTheme.dangerColor)
+                      .margin({ right: 10 })
+                    
+                    Text(`${this.game.getScore()}/${this.game.getTargetScore()}`)
+                      .fontSize(18)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.primaryText)
+                  }
+                  
+                  Text(`速度: ${this.game.getCurrentSpeedRatio().toFixed(1)}x`)
+                    .fontSize(14)
+                    .fontColor(this.getSpeedColor())
+                } else {
+                  // 休闲模式：显示得分和速度
+                  Text(`得分: ${this.game.getScore()}`)
+                    .fontSize(18)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.primaryText)
+                  
+                  Text(`速度: ${this.game.getCurrentSpeedRatio().toFixed(1)}x`)
+                    .fontSize(14)
+                    .fontColor(this.getSpeedColor())
+                }
               }
               .alignItems(HorizontalAlign.End)
               .margin({ right: 10 })
@@ -644,50 +822,88 @@ struct GamePage {
           // 第二行：时间、速度和控制按钮
           Row() {
             Row() {
-              Text(`时间: ${this.currentTime}`)
-                .fontSize(16)
-                .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.secondaryText)
-              
-              if ((this.game.getCharacter() === 'xiaomao.jpg' || this.game.getCharacter() === 'xiaom.jpg' || this.game.getCharacter() === 'cat.png') && this.game.getMushroomImmunity() > 0) {
-                Text(` | 🛡️×${this.game.getMushroomImmunity()}`)
+              if (this.game.isChallengeGameMode()) {
+                // 挑战模式：显示倒计时
+                Text(`⏱️ ${this.game.getFormattedRemainingTime()}`)
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.game.getRemainingTime() <= 30 ? this.currentTheme.dangerColor : 
+                            (this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.secondaryText))
+                
+                // 小猫角色显示免疫次数
+                if ((this.game.getCharacter() === 'xiaomao.jpg' || this.game.getCharacter() === 'xiaom.jpg' || this.game.getCharacter() === 'cat.png') && this.game.getMushroomImmunity() > 0) {
+                  Row() {
+                    Text(' | ')
+                      .fontSize(16)
+                      .fontColor(this.currentTheme.accentColor)
+                    
+                    Image($rawfile('dunpai.png'))
+                      .width(30)
+                      .height(30)
+                      .margin({ right: 3 })
+                    
+                    Text(`×${this.game.getMushroomImmunity()}`)
+                      .fontSize(16)
+                      .fontColor(this.currentTheme.accentColor)
+                  }
+                }
+              } else {
+                // 休闲模式：显示存活时间
+                Text(`时间: ${this.currentTime}`)
                   .fontSize(16)
-                  .fontColor(this.currentTheme.accentColor)
+                  .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.secondaryText)
+                
+                if ((this.game.getCharacter() === 'xiaomao.jpg' || this.game.getCharacter() === 'xiaom.jpg' || this.game.getCharacter() === 'cat.png') && this.game.getMushroomImmunity() > 0) {
+                  Row() {
+                    Text(' | ')
+                      .fontSize(16)
+                      .fontColor(this.currentTheme.accentColor)
+                    
+                    Image($rawfile('dunpai.png'))
+                      .width(30)
+                      .height(30)
+                      .margin({ right: 3 })
+                    
+                    Text(`×${this.game.getMushroomImmunity()}`)
+                      .fontSize(16)
+                      .fontColor(this.currentTheme.accentColor)
+                  }
+                }
               }
             }
 
-            if (this.gameMode === 'casual') {
-              Row() {
-                if (!this.isPlaying || this.game.isOver()) {
-                  Button('开始')
-                    .fontSize(14)
-                    .height(32)
-                    .backgroundColor(this.currentTheme.successColor)
-                    .fontColor('#FFFFFF')
-                    .onClick(() => this.startGame())
-                } else if (this.isPaused) {
-                  Button('继续')
-                    .fontSize(14)
-                    .height(32)
-                    .backgroundColor(this.currentTheme.successColor)
-                    .fontColor('#FFFFFF')
-                    .onClick(() => this.resumeGame())
-                } else {
-                  Button('暂停')
-                    .fontSize(14)
-                    .height(32)
-                    .backgroundColor(this.currentTheme.accentColor)
-                    .fontColor('#FFFFFF')
-                    .onClick(() => this.pauseGame())
-                }
-
-                Button('重开')
+            // 休闲模式和挑战模式都显示控制按钮
+            Row() {
+              if (!this.isPlaying || this.game.isOver()) {
+                Button('开始')
                   .fontSize(14)
                   .height(32)
-                  .backgroundColor(this.currentTheme.buttonPrimary)
+                  .backgroundColor(this.currentTheme.successColor)
                   .fontColor('#FFFFFF')
-                  .margin({ left: 10 })
-                  .onClick(() => this.restartGame())
+                  .onClick(() => this.startGame())
+              } else if (this.isPaused) {
+                Button('继续')
+                  .fontSize(14)
+                  .height(32)
+                  .backgroundColor(this.currentTheme.successColor)
+                  .fontColor('#FFFFFF')
+                  .onClick(() => this.resumeGame())
+              } else {
+                Button('暂停')
+                  .fontSize(14)
+                  .height(32)
+                  .backgroundColor(this.currentTheme.accentColor)
+                  .fontColor('#FFFFFF')
+                  .onClick(() => this.pauseGame())
               }
+
+              Button('重开')
+                .fontSize(14)
+                .height(32)
+                .backgroundColor(this.currentTheme.buttonPrimary)
+                .fontColor('#FFFFFF')
+                .margin({ left: 10 })
+                .onClick(() => this.restartGame())
             }
           }
           .width('100%')
@@ -773,7 +989,7 @@ struct GamePage {
 
             Text('游戏已暂停')
               .fontSize(32)
-              .fontColor(this.currentTheme.accentColor)
+              .fontColor(this.currentTheme.name === 'dark' ? '#FFFFFF' : this.currentTheme.accentColor)
               .fontWeight(FontWeight.Bold)
               .margin({ bottom: 15 })
 
@@ -788,6 +1004,41 @@ struct GamePage {
           .shadow({ radius: 20, color: this.currentTheme.shadowColor })
           .position({ x: '50%', y: '40%' })
           .translate({ x: '-50%', y: '-50%' })
+        }
+
+        // 挑战成功提示
+        if (this.showChallengeSuccessDialog) {
+          Column() {
+            Image($rawfile('success3.png'))
+              .width(200)
+              .height(200)
+              .margin({ bottom: 20 })
+
+            Text('挑战成功')
+              .fontSize(32)
+              .fontColor(this.currentTheme.name === 'dark' ? '#FFFFFF' : this.currentTheme.accentColor)
+              .fontWeight(FontWeight.Bold)
+              .margin({ bottom: 15 })
+
+            Text('成功帮助小动物收集食物')
+              .fontSize(16)
+              .fontColor(this.currentTheme.secondaryText)
+              .margin({ bottom: 10 })
+
+            Text('点击返回关卡页面')
+              .fontSize(14)
+              .fontColor(this.currentTheme.hintText)
+          }
+          .width(320)
+          .padding(20)
+          .backgroundColor(this.currentTheme.secondaryBg)
+          .borderRadius(16)
+          .shadow({ radius: 20, color: this.currentTheme.shadowColor })
+          .position({ x: '50%', y: '40%' })
+          .translate({ x: '-50%', y: '-50%' })
+          .onClick(() => {
+            router.back();
+          })
         }
 
         // 控制按钮（仅在按键模式显示）
@@ -881,6 +1132,21 @@ struct GamePage {
         .alignItems(HorizontalAlign.Center)
         .onClick(() => {
           this.showControlDialog = false;
+        })
+      }
+
+      // 规则介绍弹窗
+      if (this.showRulesDialog) {
+        Column() {
+          this.RulesDialog()
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0, 0, 0, 0.5)')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .onClick(() => {
+          this.showRulesDialog = false;
         })
       }
     }

@@ -38,6 +38,13 @@ export class SnakeGame {
   private baseSpeed: number = 200;
   private originalSpeed: number = 200; // 保存原始设定速度（用于计算速度比率）
   private speedMultiplier: number = 1.0; // 速度倍数（由食物效果累积）
+  // 挑战模式相关
+  private isChallengeMode: boolean = false;
+  private lives: number = 3; // 生命数
+  private timeLimit: number = 180; // 时间限制（秒）
+  private remainingTime: number = 180; // 剩余时间
+  private targetScore: number = 0; // 目标分数
+  private challengeStartTime: number = 0; // 挑战开始时间
   private startTime: number = 0;
   private survivalTime: number = 0;
   private lastFoodSpawnTime: number = 0;
@@ -46,11 +53,16 @@ export class SnakeGame {
   private character: string = 'xiaomao.jpg'; // 当前角色
   private mushroomImmunity: number = 0; // 蘑菇免疫次数
 
-  constructor(speed: number = 200, gridWidth: number = 28, gridHeight: number = 18, character: string = 'xiaomao.jpg') {
+  constructor(speed: number = 200, gridWidth: number = 28, gridHeight: number = 18, character: string = 'xiaomao.jpg', 
+              isChallengeMode: boolean = false, timeLimit: number = 180, targetScore: number = 0) {
     this.speed = speed;
     this.baseSpeed = speed;
     this.originalSpeed = speed; // 保存原始速度
     this.gridWidth = gridWidth;
+    this.isChallengeMode = isChallengeMode;
+    this.timeLimit = timeLimit;
+    this.remainingTime = timeLimit;
+    this.targetScore = targetScore;
     this.gridHeight = gridHeight;
     this.character = character;
     this.init();
@@ -73,7 +85,45 @@ export class SnakeGame {
     this.foods = [];
     this.lastFoodSpawnTime = Date.now();
     this.speedMultiplier = 1.0; // 重置速度倍数
+    
+    // 挑战模式初始化
+    if (this.isChallengeMode) {
+      this.lives = 3;
+      this.remainingTime = this.timeLimit;
+      this.challengeStartTime = Date.now();
+    }
+    
     this.initCharacterAbility(); // 初始化角色能力
+    this.spawnFood();
+  }
+
+  // 处理死亡
+  private handleDeath(): boolean {
+    if (this.isChallengeMode && this.lives > 1) {
+      // 挑战模式且还有生命：扣除生命并复活
+      this.lives--;
+      this.revive();
+      return true; // 继续游戏
+    } else {
+      // 休闲模式或生命耗尽：游戏结束
+      this.isGameOver = true;
+      return false;
+    }
+  }
+
+  // 挑战模式：死亡后复活
+  private revive() {
+    const centerX = Math.floor(this.gridWidth / 2);
+    const centerY = Math.floor(this.gridHeight / 2);
+    this.snake = [
+      { x: centerX, y: centerY },
+      { x: centerX - 1, y: centerY },
+      { x: centerX - 2, y: centerY }
+    ];
+    this.direction = Direction.RIGHT;
+    this.nextDirection = Direction.RIGHT;
+    this.foods = [];
+    this.lastFoodSpawnTime = Date.now();
     this.spawnFood();
   }
 
@@ -113,6 +163,33 @@ export class SnakeGame {
 
   getCharacter(): string {
     return this.character;
+  }
+
+  // 挑战模式相关方法
+  isChallengeGameMode(): boolean {
+    return this.isChallengeMode;
+  }
+
+  getLives(): number {
+    return this.lives;
+  }
+
+  getRemainingTime(): number {
+    return this.remainingTime;
+  }
+
+  getTimeLimit(): number {
+    return this.timeLimit;
+  }
+
+  getTargetScore(): number {
+    return this.targetScore;
+  }
+
+  getFormattedRemainingTime(): string {
+    const minutes = Math.floor(this.remainingTime / 60);
+    const seconds = this.remainingTime % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
   startTimer() {
@@ -357,6 +434,19 @@ export class SnakeGame {
     if (this.isGameOver) return false;
 
     this.updateSurvivalTime();
+    
+    // 挑战模式：更新倒计时
+    if (this.isChallengeMode) {
+      const elapsed = Math.floor((Date.now() - this.challengeStartTime) / 1000);
+      this.remainingTime = Math.max(0, this.timeLimit - elapsed);
+      
+      // 时间耗尽，游戏结束
+      if (this.remainingTime <= 0) {
+        this.isGameOver = true;
+        return false;
+      }
+    }
+    
     this.updateFoods();
     this.direction = this.nextDirection;
 
@@ -381,14 +471,12 @@ export class SnakeGame {
     // 检查撞墙
     if (newHead.x < 0 || newHead.x >= this.gridWidth ||
       newHead.y < 0 || newHead.y >= this.gridHeight) {
-      this.isGameOver = true;
-      return false;
+      return this.handleDeath();
     }
 
     // 检查撞到自己
     if (this.isPositionOnSnake(newHead)) {
-      this.isGameOver = true;
-      return false;
+      return this.handleDeath();
     }
 
     this.snake.unshift(newHead);
