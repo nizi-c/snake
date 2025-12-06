@@ -26,7 +26,7 @@ struct GamePage {
   @State gameMode: string = 'casual';
   @State updateFlag: number = 0;
   @State currentTime: string = '00:00';
-  @State controlMode: string = 'button'; // 'button' 或 'click'
+  @State controlMode: string = 'click'; // 'button' 或 'click'，默认为点击控制
   @State showControlDialog: boolean = false;
   @State showMenuDialog: boolean = false;
   @State showCharacterDialog: boolean = false;
@@ -49,6 +49,9 @@ struct GamePage {
     // 设置背景图片
     this.updateBackgroundImage();
     
+    // 加载控制方式
+    await this.loadControlMode();
+    
     // 监听主题变化
     this.themeManager.addListener((theme: Theme) => {
       this.currentTheme = theme;
@@ -56,6 +59,29 @@ struct GamePage {
     });
     
     await this.loadGameSettings();
+  }
+
+  async loadControlMode() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      this.controlMode = await prefs.get('controlMode', 'click') as string;
+      console.info('Loaded control mode:', this.controlMode);
+    } catch (err) {
+      console.error('Failed to load control mode:', err);
+    }
+  }
+
+  async saveControlMode() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      await prefs.put('controlMode', this.controlMode);
+      await prefs.flush();
+      console.info('Control mode saved:', this.controlMode);
+    } catch (err) {
+      console.error('Failed to save control mode:', err);
+    }
   }
 
   updateBackgroundImage() {
@@ -536,6 +562,7 @@ struct GamePage {
         .backgroundColor(this.currentTheme.buttonPrimary)
         .onClick(() => {
           this.showControlDialog = false;
+          this.saveControlMode();
         })
     }
     .width(this.dialogSize)
@@ -589,7 +616,7 @@ struct GamePage {
                 Text(`得分: ${this.game.getScore()}`)
                   .fontSize(18)
                   .fontWeight(FontWeight.Medium)
-                  .fontColor(this.currentTheme.primaryText)
+                  .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.primaryText)
                 
                 Text(`速度: ${this.game.getCurrentSpeedRatio().toFixed(1)}x`)
                   .fontSize(14)
@@ -616,24 +643,17 @@ struct GamePage {
 
           // 第二行：时间、速度和控制按钮
           Row() {
-            Column() {
+            Row() {
               Text(`时间: ${this.currentTime}`)
                 .fontSize(16)
-                .fontColor(this.currentTheme.secondaryText)
+                .fontColor(this.currentTheme.name === 'dark' ? this.currentTheme.accentColor : this.currentTheme.secondaryText)
               
-              Row() {
-                Text(`速度: ${this.game.getSpeed()}ms`)
-                  .fontSize(14)
-                  .fontColor(this.currentTheme.hintText)
-                
-                if ((this.game.getCharacter() === 'xiaomao.jpg' || this.game.getCharacter() === 'xiaom.jpg' || this.game.getCharacter() === 'cat.png') && this.game.getMushroomImmunity() > 0) {
-                  Text(` | 🛡️×${this.game.getMushroomImmunity()}`)
-                    .fontSize(14)
-                    .fontColor(this.currentTheme.accentColor)
-                }
+              if ((this.game.getCharacter() === 'xiaomao.jpg' || this.game.getCharacter() === 'xiaom.jpg' || this.game.getCharacter() === 'cat.png') && this.game.getMushroomImmunity() > 0) {
+                Text(` | 🛡️×${this.game.getMushroomImmunity()}`)
+                  .fontSize(16)
+                  .fontColor(this.currentTheme.accentColor)
               }
             }
-            .alignItems(HorizontalAlign.Start)
 
             if (this.gameMode === 'casual') {
               Row() {
@@ -703,24 +723,29 @@ struct GamePage {
         // 游戏结束提示
         if (this.game.isOver()) {
           Column() {
+            Image($rawfile('success.jpg'))
+              .width(200)
+              .height(200)
+              .margin({ bottom: 20 })
+
             Text('游戏结束!')
-              .fontSize(36)
-              .fontColor(this.currentTheme.dangerColor)
+              .fontSize(32)
+              .fontColor(this.currentTheme.name === 'dark' ? '#FFFFFF' : this.currentTheme.accentColor)
               .fontWeight(FontWeight.Bold)
               .margin({ bottom: 15 })
 
             Text(`得分: ${this.game.getScore()}`)
-              .fontSize(24)
+              .fontSize(20)
               .fontColor(this.currentTheme.primaryText)
               .margin({ bottom: 10 })
 
             Text(`存活时间: ${this.currentTime}`)
-              .fontSize(20)
+              .fontSize(16)
               .fontColor(this.currentTheme.secondaryText)
-              .margin({ bottom: 30 })
+              .margin({ bottom: 25 })
 
             Button('重新开始')
-              .fontSize(20)
+              .fontSize(18)
               .width(160)
               .height(50)
               .fontColor('#FFFFFF')
@@ -729,8 +754,8 @@ struct GamePage {
                 this.restartGame();
               })
           }
-          .width(300)
-          .padding(30)
+          .width(320)
+          .padding(20)
           .backgroundColor(this.currentTheme.secondaryBg)
           .borderRadius(16)
           .shadow({ radius: 20, color: this.currentTheme.shadowColor })
@@ -741,18 +766,23 @@ struct GamePage {
         // 暂停提示
         if (this.isPaused && !this.game.isOver()) {
           Column() {
+            Image($rawfile('stop.png'))
+              .width(200)
+              .height(200)
+              .margin({ bottom: 20 })
+
             Text('游戏已暂停')
               .fontSize(32)
               .fontColor(this.currentTheme.accentColor)
               .fontWeight(FontWeight.Bold)
-              .margin({ bottom: 20 })
+              .margin({ bottom: 15 })
 
             Text('点击"继续"或方向键恢复游戏')
               .fontSize(16)
               .fontColor(this.currentTheme.secondaryText)
           }
-          .width(280)
-          .padding(30)
+          .width(320)
+          .padding(20)
           .backgroundColor(this.currentTheme.secondaryBg)
           .borderRadius(16)
           .shadow({ radius: 20, color: this.currentTheme.shadowColor })

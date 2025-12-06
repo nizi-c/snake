@@ -67,10 +67,10 @@ export const DarkTheme: Theme = {
   secondaryBg: '#5BA3D9',      // 亮天蓝
   cardBg: '#6BB5E8',           // 浅天蓝卡片
   
-  // 文字色 - 高对比度
-  primaryText: '#FFFFFF',      // 纯白文字
-  secondaryText: '#E8F4F8',    // 浅蓝白
-  hintText: '#B8D9ED',         // 淡蓝色提示
+  // 文字色 - 深色文字（在白色半透明卡片上显示）
+  primaryText: '#1A1A1A',      // 深灰黑文字
+  secondaryText: '#4A4A4A',    // 中灰文字
+  hintText: '#757575',         // 浅灰提示
   
   // 强调色 - 明亮色系
   accentColor: '#7EC8F5',      // 明亮天蓝

@@ -13,6 +13,7 @@ interface CharacterInfo {
 struct CharacterSelectPage {
   @State selectedCharacter: string = 'cat.png';
   @State currentTheme: Theme = LightTheme;
+  @State bgImagePath: string = '';
   private themeManager: ThemeManager = ThemeManager.getInstance();
   private characters: CharacterInfo[] = [
     { name: '小猫', image: 'xiaomao.jpg', description: '免疫3次蘑菇扣分' } as CharacterInfo,
@@ -25,9 +26,12 @@ struct CharacterSelectPage {
     await this.themeManager.loadTheme(getContext(this));
     this.currentTheme = this.themeManager.getTheme();
     
+    this.updateBackgroundImage();
+    
     // 监听主题变化
     this.themeManager.addListener((theme: Theme) => {
       this.currentTheme = theme;
+      this.updateBackgroundImage();
     });
     
     await this.loadSelectedCharacter();
@@ -63,8 +67,32 @@ struct CharacterSelectPage {
     }
   }
 
+  updateBackgroundImage() {
+    this.bgImagePath = this.currentTheme.name === 'light' ? 'light_qita.jpg' : 'blue_qita.png';
+  }
+
+  getTransparentBg(color: string, opacity: number): string {
+    // 深色主题使用白色背景，浅色主题使用主题颜色
+    if (this.currentTheme.name === 'dark') {
+      return `rgba(255, 255, 255, ${opacity})`;
+    }
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+
   build() {
-    Column() {
+    Stack() {
+      if (this.bgImagePath) {
+        Image($rawfile(this.bgImagePath))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+      }
+
+      Column() {
       // 顶部导航栏
       Row() {
         Button('返回')
@@ -93,7 +121,7 @@ struct CharacterSelectPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor(this.currentTheme.secondaryBg)
+      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
 
       // 角色列表
       Scroll() {
@@ -150,7 +178,7 @@ struct CharacterSelectPage {
             .width('100%')
             .height(140)
             .padding(10)
-            .backgroundColor(this.selectedCharacter === character.image ? this.currentTheme.cardBg : this.currentTheme.secondaryBg)
+            .backgroundColor(this.selectedCharacter === character.image ? this.getTransparentBg(this.currentTheme.cardBg, 0.4) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
             .borderRadius(12)
             .margin({ bottom: 15 })
             .border({
@@ -175,10 +203,13 @@ struct CharacterSelectPage {
         .padding(20)
       }
       .layoutWeight(1)
-      .backgroundColor(this.currentTheme.primaryBg)
+      .backgroundColor('rgba(0, 0, 0, 0)')
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(this.bgImagePath ? 'rgba(0, 0, 0, 0)' : this.currentTheme.primaryBg)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.currentTheme.primaryBg)
   }
 }

@@ -15,18 +15,39 @@ interface GameRecord {
 struct HistoryPage {
   @State records: GameRecord[] = [];
   @State currentTheme: Theme = LightTheme;
+  @State bgImagePath: string = '';
   private themeManager: ThemeManager = ThemeManager.getInstance();
 
   async aboutToAppear() {
     await this.themeManager.loadTheme(getContext(this));
     this.currentTheme = this.themeManager.getTheme();
     
+    // 设置背景图片
+    this.updateBackgroundImage();
+    
     // 监听主题变化
     this.themeManager.addListener((theme: Theme) => {
       this.currentTheme = theme;
+      this.updateBackgroundImage();
     });
     
     await this.loadHistory();
+  }
+
+  updateBackgroundImage() {
+    this.bgImagePath = this.currentTheme.name === 'light' ? 'light_qita.jpg' : 'blue_qita.png';
+  }
+
+  getTransparentBg(color: string, opacity: number): string {
+    // 深色主题使用白色背景，浅色主题使用主题颜色
+    if (this.currentTheme.name === 'dark') {
+      return `rgba(255, 255, 255, ${opacity})`;
+    }
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   }
 
   aboutToDisappear() {
@@ -105,9 +126,18 @@ struct HistoryPage {
   }
 
   build() {
-    Column() {
-      // 顶部导航栏
-      Row() {
+    Stack() {
+      // 背景图片
+      if (this.bgImagePath) {
+        Image($rawfile(this.bgImagePath))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+      }
+
+      Column() {
+        // 顶部导航栏
+        Row() {
         Button('返回')
           .fontSize(16)
           .backgroundColor(this.currentTheme.buttonSecondary)
@@ -133,7 +163,7 @@ struct HistoryPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor(this.currentTheme.secondaryBg)
+      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
 
       // 最佳记录卡片
       if (this.records.length > 0) {
@@ -188,7 +218,7 @@ struct HistoryPage {
         .width('90%')
         .padding(20)
         .margin({ top: 15, bottom: 10 })
-        .backgroundColor('#FFF3E0')
+        .backgroundColor('rgba(255, 243, 224, 0.4)')
         .borderRadius(15)
         .border({ width: 3, color: '#FF9800' })
         .shadow({ radius: 8, color: '#FF980040' })
@@ -256,7 +286,7 @@ struct HistoryPage {
                 .padding(15)
               }
               .width('100%')
-              .backgroundColor(this.isBestRecord(record) ? this.currentTheme.cardBg : this.currentTheme.secondaryBg)
+              .backgroundColor(this.isBestRecord(record) ? this.getTransparentBg(this.currentTheme.cardBg, 0.4) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
               .borderRadius(12)
               .margin({ bottom: 10 })
               .border(this.isBestRecord(record) ? { width: 2, color: this.currentTheme.accentColor } : undefined)
@@ -267,11 +297,14 @@ struct HistoryPage {
           .padding(15)
         }
         .layoutWeight(1)
-        .backgroundColor(this.currentTheme.primaryBg)
+        .backgroundColor('rgba(0, 0, 0, 0)')
       }
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(this.bgImagePath ? 'rgba(0, 0, 0, 0)' : this.currentTheme.primaryBg)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.currentTheme.primaryBg)
   }
 }
