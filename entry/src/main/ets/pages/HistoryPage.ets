@@ -35,7 +35,7 @@ struct HistoryPage {
   }
 
   updateBackgroundImage() {
-    this.bgImagePath = this.currentTheme.name === 'light' ? 'light_qita.jpg' : 'blue_qita.png';
+    this.bgImagePath = this.currentTheme.name === 'light' ? 'startIcon.png' : 'blue_qita.png';
   }
 
   getTransparentBg(color: string, opacity: number): string {
@@ -163,7 +163,7 @@ struct HistoryPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
 
       // 最佳记录卡片
       if (this.records.length > 0) {
@@ -286,7 +286,7 @@ struct HistoryPage {
                 .padding(15)
               }
               .width('100%')
-              .backgroundColor(this.isBestRecord(record) ? this.getTransparentBg(this.currentTheme.cardBg, 0.4) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+              .backgroundColor(this.isBestRecord(record) ? this.getTransparentBg(this.currentTheme.cardBg, 0.6) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
               .borderRadius(12)
               .margin({ bottom: 10 })
               .border(this.isBestRecord(record) ? { width: 2, color: this.currentTheme.accentColor } : undefined)

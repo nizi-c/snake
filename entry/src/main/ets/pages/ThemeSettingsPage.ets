@@ -23,7 +23,7 @@ struct ThemeSettingsPage {
   }
 
   updateBackgroundImage() {
-    this.bgImagePath = this.currentTheme.name === 'light' ? 'light_qita.jpg' : 'blue_qita.png';
+    this.bgImagePath = this.currentTheme.name === 'light' ? 'startIcon.png' : 'blue_qita.png';
   }
 
   getTransparentBg(color: string, opacity: number): string {
@@ -85,7 +85,7 @@ struct ThemeSettingsPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
 
       // 设置列表
       Scroll() {
@@ -166,7 +166,7 @@ struct ThemeSettingsPage {
             }
             .width('100%')
             .padding({ left: 20, right: 20, top: 15, bottom: 15 })
-            .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.4))
+            .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.6))
             .borderRadius(12)
             .margin({ left: 15, right: 15, bottom: 10 })
             .onClick(() => {

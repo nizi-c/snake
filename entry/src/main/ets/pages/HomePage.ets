@@ -73,11 +73,11 @@ struct HomePage {
       .width('100%')
       .padding({ top: 20, right: 20 })
 
-      Text('贪吃蛇游戏')
+      Text('一起野餐吧')
         .fontSize(48)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.currentTheme.primaryText)
-        .margin({ top: 60, bottom: 80 })
+        .margin({ top: 60, bottom: 50 })
 
       Button('休闲模式')
         .width(280)
@@ -88,6 +88,7 @@ struct HomePage {
         .borderRadius(12)
         .margin({ bottom: 30 })
         .shadow({ radius: 6, color: this.currentTheme.shadowColor })
+        .opacity(0.7)
         .onClick(() => {
           router.pushUrl({
             url: 'pages/GamePage',
@@ -102,10 +103,27 @@ struct HomePage {
         .backgroundColor(this.currentTheme.accentColor)
         .fontColor('#FFFFFF')
         .borderRadius(12)
+        .margin({ bottom: 30 })
         .shadow({ radius: 6, color: this.currentTheme.shadowColor })
+        .opacity(0.7)
         .onClick(() => {
           router.pushUrl({
             url: 'pages/ChallengeLevelPage'
+          })
+        })
+
+      Button('成就')
+        .width(280)
+        .height(70)
+        .fontSize(28)
+        .backgroundColor(this.currentTheme.name === 'dark' ? '#B0B0B0' : '#FF9800')
+        .fontColor('#FFFFFF')
+        .borderRadius(12)
+        .shadow({ radius: 6, color: this.currentTheme.shadowColor })
+        .opacity(0.7)
+        .onClick(() => {
+          router.pushUrl({
+            url: 'pages/AchievementPage'
           })
         })
       }

@@ -143,7 +143,7 @@ struct ChallengeLevelPage {
         .height(60)
         .justifyContent(FlexAlign.SpaceBetween)
         .padding({ left: 20, right: 20 })
-        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
 
         // 关卡列表
         Scroll() {
@@ -212,7 +212,7 @@ struct ChallengeLevelPage {
               }
               .width('90%')
               .margin({ top: 15, bottom: 15 })
-              .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.4))
+              .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.6))
               .borderRadius(15)
               .border({ width: 2, color: this.currentTheme.borderColor })
               .shadow({ radius: 6, color: this.currentTheme.shadowColor })

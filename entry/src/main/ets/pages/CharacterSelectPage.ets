@@ -68,7 +68,7 @@ struct CharacterSelectPage {
   }
 
   updateBackgroundImage() {
-    this.bgImagePath = this.currentTheme.name === 'light' ? 'light_qita.jpg' : 'blue_qita.png';
+    this.bgImagePath = this.currentTheme.name === 'light' ? 'startIcon.png' : 'blue_qita.png';
   }
 
   getTransparentBg(color: string, opacity: number): string {
@@ -121,7 +121,7 @@ struct CharacterSelectPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+      .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
 
       // 角色列表
       Scroll() {
@@ -178,7 +178,7 @@ struct CharacterSelectPage {
             .width('100%')
             .height(140)
             .padding(10)
-            .backgroundColor(this.selectedCharacter === character.image ? this.getTransparentBg(this.currentTheme.cardBg, 0.4) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+            .backgroundColor(this.selectedCharacter === character.image ? this.getTransparentBg(this.currentTheme.cardBg, 0.6) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
             .borderRadius(12)
             .margin({ bottom: 15 })
             .border({

@@ -912,7 +912,7 @@ struct GamePage {
           .padding({ left: 20, right: 20 })
         }
         .width('100%')
-        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
+        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
 
         // 游戏区域
         Column() {
