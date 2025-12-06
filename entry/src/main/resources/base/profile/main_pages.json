@@ -4,6 +4,8 @@
     "pages/HomePage",
     "pages/GamePage",
     "pages/SettingsPage",
-    "pages/CharacterSelectPage"
+    "pages/CharacterSelectPage",
+    "pages/HistoryPage",
+    "pages/ThemeSettingsPage"
   ]
 }

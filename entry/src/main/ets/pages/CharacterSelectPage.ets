@@ -1,5 +1,6 @@
 import router from '@ohos.router';
 import preferences from '@ohos.data.preferences';
+import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
 
 interface CharacterInfo {
   name: string;
@@ -11,22 +12,39 @@ interface CharacterInfo {
 @Component
 struct CharacterSelectPage {
   @State selectedCharacter: string = 'cat.png';
+  @State currentTheme: Theme = LightTheme;
+  private themeManager: ThemeManager = ThemeManager.getInstance();
   private characters: CharacterInfo[] = [
-    { name: '小猫', image: 'cat.png', description: '免疫3次蘑菇扣分' } as CharacterInfo,
-    { name: '小狗', image: 'dog.png', description: '速度+10%，分数效果×2' } as CharacterInfo,
-    { name: '兔子', image: 'rabbit.png', description: '速度变化×2，分数效果+50%' } as CharacterInfo,
+    { name: '小猫', image: 'xiaomao.jpg', description: '免疫3次蘑菇扣分' } as CharacterInfo,
+    { name: '小狗', image: 'xiaogou.jpg', description: '速度+10%，分数效果×2' } as CharacterInfo,
+    { name: '兔子', image: 'tuzi.jpg', description: '速度变化×2，分数效果+50%' } as CharacterInfo,
     { name: '仓鼠', image: 'cangshu.png', description: '初始100分，速度-10%，减分+200%' } as CharacterInfo
   ];
 
   async aboutToAppear() {
+    await this.themeManager.loadTheme(getContext(this));
+    this.currentTheme = this.themeManager.getTheme();
+    
+    // 监听主题变化
+    this.themeManager.addListener((theme: Theme) => {
+      this.currentTheme = theme;
+    });
+    
     await this.loadSelectedCharacter();
+  }
+
+  aboutToDisappear() {
+    // 清理监听器
+    this.themeManager.removeListener((theme: Theme) => {
+      this.currentTheme = theme;
+    });
   }
 
   async loadSelectedCharacter() {
     try {
       const context = getContext(this);
       const prefs = await preferences.getPreferences(context, 'snake_settings');
-      this.selectedCharacter = await prefs.get('character', 'cat.png') as string;
+      this.selectedCharacter = await prefs.get('character', 'xiaomao.jpg') as string;
     } catch (err) {
       console.error('Failed to load character:', err);
     }
@@ -51,7 +69,8 @@ struct CharacterSelectPage {
       Row() {
         Button('返回')
           .fontSize(16)
-          .backgroundColor('#666666')
+          .backgroundColor(this.currentTheme.buttonSecondary)
+          .fontColor('#FFFFFF')
           .onClick(() => {
             router.back({
               url: 'pages/GamePage',
@@ -65,6 +84,7 @@ struct CharacterSelectPage {
         Text('角色选择')
           .fontSize(20)
           .fontWeight(FontWeight.Bold)
+          .fontColor(this.currentTheme.primaryText)
 
         Text('')
           .width(60)
@@ -73,7 +93,7 @@ struct CharacterSelectPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor('#FFFFFF')
+      .backgroundColor(this.currentTheme.secondaryBg)
 
       // 角色列表
       Scroll() {
@@ -81,6 +101,7 @@ struct CharacterSelectPage {
           Text('选择你的角色')
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
+            .fontColor(this.currentTheme.primaryText)
             .margin({ top: 30, bottom: 20 })
 
           // 角色卡片
@@ -105,18 +126,19 @@ struct CharacterSelectPage {
                 Text(character.name)
                   .fontSize(22)
                   .fontWeight(FontWeight.Bold)
+                  .fontColor(this.currentTheme.primaryText)
                   .margin({ bottom: 8 })
 
                 Text(character.description)
                   .fontSize(15)
-                  .fontColor('#666666')
+                  .fontColor(this.currentTheme.secondaryText)
                   .margin({ bottom: 10 })
 
                 if (this.selectedCharacter === character.image) {
                   Row() {
                     Text('✓ 已选择')
                       .fontSize(14)
-                      .fontColor('#4CAF50')
+                      .fontColor(this.currentTheme.successColor)
                       .fontWeight(FontWeight.Medium)
                   }
                 }
@@ -128,16 +150,16 @@ struct CharacterSelectPage {
             .width('100%')
             .height(140)
             .padding(10)
-            .backgroundColor(this.selectedCharacter === character.image ? '#E8F5E9' : '#FFFFFF')
+            .backgroundColor(this.selectedCharacter === character.image ? this.currentTheme.cardBg : this.currentTheme.secondaryBg)
             .borderRadius(12)
             .margin({ bottom: 15 })
             .border({
               width: 3,
-              color: this.selectedCharacter === character.image ? '#4CAF50' : '#E0E0E0'
+              color: this.selectedCharacter === character.image ? this.currentTheme.successColor : this.currentTheme.borderColor
             })
             .shadow({
               radius: this.selectedCharacter === character.image ? 8 : 4,
-              color: this.selectedCharacter === character.image ? '#4CAF5040' : '#00000020'
+              color: this.currentTheme.shadowColor
             })
             .onClick(() => {
               this.saveCharacter(character.image);
@@ -146,16 +168,17 @@ struct CharacterSelectPage {
 
           Text('选择你喜欢的角色作为蛇头吧！')
             .fontSize(14)
-            .fontColor('#999999')
+            .fontColor(this.currentTheme.hintText)
             .margin({ top: 20, bottom: 30 })
         }
         .width('100%')
         .padding(20)
       }
       .layoutWeight(1)
-      .backgroundColor('#F5F5F5')
+      .backgroundColor(this.currentTheme.primaryBg)
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(this.currentTheme.primaryBg)
   }
 }

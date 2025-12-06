@@ -43,10 +43,10 @@ export class SnakeGame {
   private lastFoodSpawnTime: number = 0;
   private readonly FOOD_SPAWN_INTERVAL: number = 2000; // 2秒
   private readonly FOOD_LIFETIME: number = 10000; // 10秒
-  private character: string = 'cat.png'; // 当前角色
+  private character: string = 'xiaomao.jpg'; // 当前角色
   private mushroomImmunity: number = 0; // 蘑菇免疫次数
 
-  constructor(speed: number = 200, gridWidth: number = 22, gridHeight: number = 15, character: string = 'cat.png') {
+  constructor(speed: number = 200, gridWidth: number = 28, gridHeight: number = 18, character: string = 'xiaomao.jpg') {
     this.speed = speed;
     this.baseSpeed = speed;
     this.originalSpeed = speed; // 保存原始速度
@@ -80,15 +80,19 @@ export class SnakeGame {
   private initCharacterAbility() {
     // 根据角色初始化特殊能力
     switch (this.character) {
-      case 'cat.png':
+      case 'xiaomao.jpg':
+      case 'xiaom.jpg': // 兼容拼写错误
+      case 'cat.png': // 兼容旧数据
         this.mushroomImmunity = 3; // 小猫：免疫3次蘑菇扣分
         break;
-      case 'dog.png':
+      case 'xiaogou.jpg':
+      case 'dog.png': // 兼容旧数据
         // 小狗：基础速度加快10%（时间减少10%）
         this.baseSpeed = Math.floor(this.baseSpeed * 0.9);
         this.speed = this.baseSpeed;
         break;
-      case 'rabbit.png':
+      case 'tuzi.jpg':
+      case 'rabbit.png': // 兼容旧数据
         // 兔子：速度变化效果翻倍，分数效果+50%
         // 特性在吃食物时应用
         break;
@@ -179,6 +183,7 @@ export class SnakeGame {
     // 速度越快，比率越大（因为时间间隔越小）
     const currentSpeed = this.getSpeed();
     // 速度比率 = 原始速度 / 当前速度
+    // 注意：速度值越小表示越快（时间间隔短），所以比率计算是原始/当前
     return this.originalSpeed / currentSpeed;
   }
 
@@ -304,7 +309,7 @@ export class SnakeGame {
     }
     
     // 兔子特性：速度变化效果翻倍
-    if (this.character === 'rabbit.png' && speedEffect !== 1.0) {
+    if ((this.character === 'tuzi.jpg' || this.character === 'rabbit.png') && speedEffect !== 1.0) {
       if (speedEffect > 1.0) {
         // 减速效果翻倍：1.1 → 1.2
         speedEffect = 1.0 + (speedEffect - 1.0) * 2;
@@ -404,7 +409,7 @@ export class SnakeGame {
         }
         
         // 小狗特性：食物加分减分效果翻倍
-        if (this.character === 'dog.png' && scoreChange !== 0) {
+        if ((this.character === 'xiaogou.jpg' || this.character === 'dog.png') && scoreChange !== 0) {
           scoreChange *= 2;
           console.info(`Dog bonus: score doubled to ${scoreChange}`);
         }
@@ -416,7 +421,7 @@ export class SnakeGame {
         }
         
         // 兔子特性：分数效果+50%
-        if (this.character === 'rabbit.png' && scoreChange !== 0) {
+        if ((this.character === 'tuzi.jpg' || this.character === 'rabbit.png') && scoreChange !== 0) {
           scoreChange = Math.floor(scoreChange * 1.5);
           console.info(`Rabbit bonus: score effect increased to ${scoreChange}`);
         }

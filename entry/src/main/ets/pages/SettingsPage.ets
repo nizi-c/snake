@@ -1,15 +1,33 @@
 import router from '@ohos.router';
 import preferences from '@ohos.data.preferences';
+import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
 
 @Entry
 @Component
 struct SettingsPage {
-  @State gridWidth: number = 22;
-  @State gridHeight: number = 15;
+  @State gridWidth: number = 28;
+  @State gridHeight: number = 18;
   @State baseSpeed: number = 200;
+  @State currentTheme: Theme = LightTheme;
+  private themeManager: ThemeManager = ThemeManager.getInstance();
 
   async aboutToAppear() {
+    await this.themeManager.loadTheme(getContext(this));
+    this.currentTheme = this.themeManager.getTheme();
+    
+    // 监听主题变化
+    this.themeManager.addListener((theme: Theme) => {
+      this.currentTheme = theme;
+    });
+    
     await this.loadSettings();
+  }
+
+  aboutToDisappear() {
+    // 清理监听器
+    this.themeManager.removeListener((theme: Theme) => {
+      this.currentTheme = theme;
+    });
   }
 
   async loadSettings() {
@@ -51,7 +69,8 @@ struct SettingsPage {
       Row() {
         Button('返回')
           .fontSize(16)
-          .backgroundColor('#666666')
+          .backgroundColor(this.currentTheme.buttonSecondary)
+          .fontColor('#FFFFFF')
           .onClick(() => {
             router.back();
           })
@@ -59,6 +78,7 @@ struct SettingsPage {
         Text('休闲模式设置')
           .fontSize(20)
           .fontWeight(FontWeight.Bold)
+          .fontColor(this.currentTheme.primaryText)
 
         Text('')
           .width(60)
@@ -67,7 +87,7 @@ struct SettingsPage {
       .height(60)
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ left: 20, right: 20 })
-      .backgroundColor('#FFFFFF')
+      .backgroundColor(this.currentTheme.secondaryBg)
 
       // 设置内容（可滚动）
       Scroll() {
@@ -77,6 +97,7 @@ struct SettingsPage {
           Text('游戏区域大小')
             .fontSize(18)
             .fontWeight(FontWeight.Medium)
+            .fontColor(this.currentTheme.primaryText)
             .width('100%')
             .margin({ bottom: 15 })
 
@@ -84,11 +105,13 @@ struct SettingsPage {
           Row() {
             Text('宽度（横向格子数）')
               .fontSize(16)
+              .fontColor(this.currentTheme.primaryText)
               .layoutWeight(1)
 
             Text(`${this.gridWidth}`)
               .fontSize(16)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.accentColor)
+              .fontWeight(FontWeight.Bold)
           }
           .width('100%')
           .margin({ bottom: 10 })
@@ -101,8 +124,8 @@ struct SettingsPage {
             style: SliderStyle.OutSet
           })
             .width('100%')
-            .trackColor('#E0E0E0')
-            .selectedColor('#2196F3')
+            .trackColor(this.currentTheme.borderColor)
+            .selectedColor(this.currentTheme.buttonPrimary)
             .showSteps(false)
             .showTips(true)
             .onChange((value: number) => {
@@ -114,11 +137,13 @@ struct SettingsPage {
           Row() {
             Text('高度（纵向格子数）')
               .fontSize(16)
+              .fontColor(this.currentTheme.primaryText)
               .layoutWeight(1)
 
             Text(`${this.gridHeight}`)
               .fontSize(16)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.accentColor)
+              .fontWeight(FontWeight.Bold)
           }
           .width('100%')
           .margin({ bottom: 10 })
@@ -131,8 +156,8 @@ struct SettingsPage {
             style: SliderStyle.OutSet
           })
             .width('100%')
-            .trackColor('#E0E0E0')
-            .selectedColor('#2196F3')
+            .trackColor(this.currentTheme.borderColor)
+            .selectedColor(this.currentTheme.buttonPrimary)
             .showSteps(false)
             .showTips(true)
             .onChange((value: number) => {
@@ -141,32 +166,36 @@ struct SettingsPage {
 
           Text('可以设置不同的宽度和高度，充分利用屏幕空间')
             .fontSize(14)
-            .fontColor('#999999')
+            .fontColor(this.currentTheme.hintText)
             .width('100%')
             .margin({ top: 10 })
         }
         .width('100%')
         .padding(20)
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.secondaryBg)
         .borderRadius(12)
         .margin({ bottom: 20 })
+        .shadow({ radius: 4, color: this.currentTheme.shadowColor })
 
         // 游戏速度设置
         Column() {
           Text('游戏速度')
             .fontSize(18)
             .fontWeight(FontWeight.Medium)
+            .fontColor(this.currentTheme.primaryText)
             .width('100%')
             .margin({ bottom: 15 })
 
           Row() {
             Text('基础速度')
               .fontSize(16)
+              .fontColor(this.currentTheme.primaryText)
               .layoutWeight(1)
 
             Text(this.getSpeedLabel())
               .fontSize(16)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.accentColor)
+              .fontWeight(FontWeight.Bold)
           }
           .width('100%')
           .margin({ bottom: 10 })
@@ -179,8 +208,8 @@ struct SettingsPage {
             style: SliderStyle.OutSet
           })
             .width('100%')
-            .trackColor('#E0E0E0')
-            .selectedColor('#FF9800')
+            .trackColor(this.currentTheme.borderColor)
+            .selectedColor(this.currentTheme.accentColor)
             .showSteps(false)
             .showTips(false)
             .onChange((value: number) => {
@@ -189,61 +218,66 @@ struct SettingsPage {
 
           Text('速度会随着分数增加自动加快（每50分加快10%）')
             .fontSize(14)
-            .fontColor('#999999')
+            .fontColor(this.currentTheme.hintText)
             .width('100%')
             .margin({ top: 10 })
         }
         .width('100%')
         .padding(20)
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.secondaryBg)
         .borderRadius(12)
         .margin({ bottom: 20 })
+        .shadow({ radius: 4, color: this.currentTheme.shadowColor })
 
         // 预览区域
         Column() {
           Text('预览')
             .fontSize(18)
             .fontWeight(FontWeight.Medium)
+            .fontColor(this.currentTheme.primaryText)
             .margin({ bottom: 15 })
 
           Column() {
             Text(`游戏区域: ${this.gridWidth} x ${this.gridHeight} (${this.gridWidth * this.gridHeight} 个格子)`)
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.secondaryText)
               .margin({ bottom: 8 })
             
             Text(`基础速度: ${this.baseSpeed}ms (${this.getSpeedLabel()})`)
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.secondaryText)
               .margin({ bottom: 8 })
             
             Text(`50分时: ${Math.floor(this.baseSpeed * 0.9)}ms`)
               .fontSize(12)
-              .fontColor('#999999')
+              .fontColor(this.currentTheme.hintText)
               .margin({ bottom: 4 })
             
             Text(`100分时: ${Math.floor(this.baseSpeed * 0.81)}ms`)
               .fontSize(12)
-              .fontColor('#999999')
+              .fontColor(this.currentTheme.hintText)
           }
           .width('100%')
           .padding(15)
           .justifyContent(FlexAlign.Center)
-          .backgroundColor('#F5F5F5')
+          .backgroundColor(this.currentTheme.cardBg)
           .borderRadius(8)
         }
         .width('100%')
         .padding(20)
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.secondaryBg)
         .borderRadius(12)
+        .shadow({ radius: 4, color: this.currentTheme.shadowColor })
 
           // 保存按钮
           Button('保存设置')
             .width('100%')
             .height(50)
             .fontSize(18)
-            .backgroundColor('#4CAF50')
+            .fontColor('#FFFFFF')
+            .backgroundColor(this.currentTheme.successColor)
             .margin({ top: 30, bottom: 20 })
+            .shadow({ radius: 6, color: this.currentTheme.shadowColor })
             .onClick(async () => {
               await this.saveSettings();
               // 返回并传递新的设置
@@ -266,9 +300,10 @@ struct SettingsPage {
       .scrollable(ScrollDirection.Vertical)
       .scrollBar(BarState.Auto)
       .edgeEffect(EdgeEffect.Spring)
-      .backgroundColor('#F5F5F5')
+      .backgroundColor(this.currentTheme.primaryBg)
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(this.currentTheme.primaryBg)
   }
 }

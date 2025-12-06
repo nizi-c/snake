@@ -2,10 +2,19 @@ import router from '@ohos.router';
 import { SnakeGame, Direction, Position, FoodType } from '../models/SnakeGame';
 import image from '@ohos.multimedia.image';
 import preferences from '@ohos.data.preferences';
+import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
 
 interface FoodImageConfig {
   type: FoodType;
   file: string;
+}
+
+interface GameRecord {
+  score: number;
+  time: string;
+  character: string;
+  mode: string;
+  timestamp: number;
 }
 
 @Entry
@@ -23,6 +32,9 @@ struct GamePage {
   @State showCharacterDialog: boolean = false;
   @State dialogSize: number = 300;
   @State currentCharacter: string = 'cat'; // 当前角色：cat, dog, rabbit, hamster
+  @State currentTheme: Theme = LightTheme;
+  @State bgImagePath: string = '';
+  private themeManager: ThemeManager = ThemeManager.getInstance();
   private timerId: number = -1;
   private cellSize: number = 30;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
@@ -31,7 +43,38 @@ struct GamePage {
   private catImage: image.PixelMap | null = null;
 
   async aboutToAppear() {
+    await this.themeManager.loadTheme(getContext(this));
+    this.currentTheme = this.themeManager.getTheme();
+    
+    // 设置背景图片
+    this.updateBackgroundImage();
+    
+    // 监听主题变化
+    this.themeManager.addListener((theme: Theme) => {
+      this.currentTheme = theme;
+      this.updateBackgroundImage();
+    });
+    
     await this.loadGameSettings();
+  }
+
+  updateBackgroundImage() {
+    // 只在休闲模式显示背景图片
+    if (this.gameMode === 'casual') {
+      this.bgImagePath = this.currentTheme.name === 'light' ? 'light.png' : 'dark.png';
+    } else {
+      this.bgImagePath = '';
+    }
+    console.info(`Game background image path set to: ${this.bgImagePath}`);
+  }
+
+  aboutToDisappear() {
+    // 清理监听器
+    this.themeManager.removeListener((theme: Theme) => {
+      this.currentTheme = theme;
+    });
+    // 停止游戏
+    this.stopGame();
   }
 
   onPageShow() {
@@ -46,10 +89,13 @@ struct GamePage {
     const params = router.getParams() as Record<string, Object>;
     this.gameMode = (params?.mode as string) || 'casual';
     
+    // 更新背景图片
+    this.updateBackgroundImage();
+    
     let baseSpeed = this.gameMode === 'challenge' ? 100 : 200;
     let gridWidth = 22;
     let gridHeight = 15;
-    let characterImage = 'cat.png';
+    let characterImage = 'xiaomao.jpg';
     
     // 检查是否从设置页面或角色选择页面返回
     if (params?.reload) {
@@ -81,7 +127,7 @@ struct GamePage {
       const prefs = await preferences.getPreferences(context, 'snake_settings');
       gridWidth = await prefs.get('gridWidth', 22) as number;
       gridHeight = await prefs.get('gridHeight', 15) as number;
-      characterImage = await prefs.get('character', 'cat.png') as string;
+      characterImage = await prefs.get('character', 'xiaomao.jpg') as string;
       
       console.info('Loaded character from preferences:', characterImage);
       
@@ -168,10 +214,6 @@ struct GamePage {
     }
   }
 
-  aboutToDisappear() {
-    this.stopGame();
-  }
-
   startGame() {
     if (this.game.isOver()) {
       this.game.init();
@@ -188,6 +230,35 @@ struct GamePage {
     if (this.timerId !== -1) {
       clearTimeout(this.timerId);
       this.timerId = -1;
+    }
+  }
+
+  async saveGameRecord() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      const historyStr = await prefs.get('gameHistory', '[]') as string;
+      const history: GameRecord[] = JSON.parse(historyStr) as GameRecord[];
+
+      const record: GameRecord = {
+        score: this.game.getScore(),
+        time: this.game.getFormattedTime(),
+        character: this.game.getCharacter(),
+        mode: this.gameMode,
+        timestamp: Date.now()
+      };
+
+      history.push(record);
+      // 只保留最近50条记录
+      if (history.length > 50) {
+        history.shift();
+      }
+
+      await prefs.put('gameHistory', JSON.stringify(history));
+      await prefs.flush();
+      console.info('Game record saved:', record);
+    } catch (err) {
+      console.error('Failed to save game record:', err);
     }
   }
 
@@ -220,6 +291,8 @@ struct GamePage {
 
     if (!success) {
       this.stopGame();
+      // 游戏结束时保存记录
+      this.saveGameRecord();
       return;
     }
 
@@ -279,12 +352,22 @@ struct GamePage {
     return '#2196F3'; // 慢 - 蓝色
   }
 
+  getTransparentBg(color: string, opacity: number): string {
+    // 将十六进制颜色转换为rgba格式
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+
   @Builder
   MenuDialog() {
     Column() {
       Text('菜单')
         .fontSize(24)
         .fontWeight(FontWeight.Bold)
+        .fontColor(this.currentTheme.primaryText)
         .margin({ bottom: 20 })
 
       // 角色选择按钮
@@ -292,7 +375,8 @@ struct GamePage {
         .width('100%')
         .height(50)
         .fontSize(18)
-        .backgroundColor('#FF5722')
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.accentColor)
         .margin({ bottom: 15 })
         .onClick(() => {
           this.showMenuDialog = false;
@@ -307,7 +391,8 @@ struct GamePage {
         .width('100%')
         .height(50)
         .fontSize(18)
-        .backgroundColor('#9C27B0')
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.buttonPrimary)
         .margin({ bottom: 15 })
         .onClick(() => {
           this.showMenuDialog = false;
@@ -320,7 +405,8 @@ struct GamePage {
           .width('100%')
           .height(50)
           .fontSize(18)
-          .backgroundColor('#2196F3')
+          .fontColor('#FFFFFF')
+          .backgroundColor(this.currentTheme.successColor)
           .margin({ bottom: 15 })
           .onClick(() => {
             this.showMenuDialog = false;
@@ -331,20 +417,38 @@ struct GamePage {
           })
       }
 
+      // 历史记录按钮
+      Button('历史记录')
+        .width('100%')
+        .height(50)
+        .fontSize(18)
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.warningColor)
+        .margin({ bottom: 15 })
+        .onClick(() => {
+          this.showMenuDialog = false;
+          this.stopGame();
+          router.pushUrl({
+            url: 'pages/HistoryPage'
+          });
+        })
+
       // 取消按钮
       Button('取消')
         .width('100%')
         .height(50)
         .fontSize(18)
-        .backgroundColor('#666666')
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.buttonSecondary)
         .onClick(() => {
           this.showMenuDialog = false;
         })
     }
     .width('60%')
     .padding(25)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(this.currentTheme.secondaryBg)
     .borderRadius(16)
+    .shadow({ radius: 10, color: this.currentTheme.shadowColor })
   }
 
   @Builder
@@ -353,6 +457,7 @@ struct GamePage {
       Text('选择控制方式')
         .fontSize(24)
         .fontWeight(FontWeight.Bold)
+        .fontColor(this.currentTheme.primaryText)
         .margin({ bottom: 30 })
 
       // 按键控制
@@ -374,7 +479,7 @@ struct GamePage {
 
             Text('使用屏幕下方的方向按钮控制蛇的移动方向')
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.secondaryText)
           }
           .alignItems(HorizontalAlign.Start)
           .margin({ left: 10 })
@@ -382,7 +487,7 @@ struct GamePage {
         }
         .width('100%')
         .padding(15)
-        .backgroundColor(this.controlMode === 'button' ? '#E3F2FD' : '#F5F5F5')
+        .backgroundColor(this.controlMode === 'button' ? this.currentTheme.cardBg : this.currentTheme.borderColor)
         .borderRadius(8)
         .onClick(() => this.controlMode = 'button')
       }
@@ -408,7 +513,7 @@ struct GamePage {
 
             Text('点击游戏区域：蛇右侧右转，蛇左侧左转')
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.secondaryText)
           }
           .alignItems(HorizontalAlign.Start)
           .margin({ left: 10 })
@@ -416,7 +521,7 @@ struct GamePage {
         }
         .width('100%')
         .padding(15)
-        .backgroundColor(this.controlMode === 'click' ? '#E3F2FD' : '#F5F5F5')
+        .backgroundColor(this.controlMode === 'click' ? this.currentTheme.cardBg : this.currentTheme.borderColor)
         .borderRadius(8)
         .onClick(() => this.controlMode = 'click')
       }
@@ -427,7 +532,8 @@ struct GamePage {
         .width('100%')
         .height(50)
         .fontSize(18)
-        .backgroundColor('#2196F3')
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.currentTheme.buttonPrimary)
         .onClick(() => {
           this.showControlDialog = false;
         })
@@ -435,9 +541,10 @@ struct GamePage {
     .width(this.dialogSize)
     .height(this.dialogSize)
     .padding(25)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(this.currentTheme.secondaryBg)
     .borderRadius(16)
     .justifyContent(FlexAlign.Center)
+    .shadow({ radius: 10, color: this.currentTheme.shadowColor })
     .onAreaChange((oldValue: Area, newValue: Area) => {
       // 当区域改变时，确保保持正方形
       const width = newValue.width as number;
@@ -447,13 +554,22 @@ struct GamePage {
 
   build() {
     Stack() {
+      // 背景图片（仅休闲模式）- 放在最外层占满整个页面
+      if (this.bgImagePath) {
+        Image($rawfile(this.bgImagePath))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+      }
+
       Column() {
         // 顶部信息栏
         Column() {
           Row() {
             Button('返回')
               .fontSize(16)
-              .backgroundColor('#666666')
+              .backgroundColor(this.currentTheme.buttonSecondary)
+              .fontColor('#FFFFFF')
               .onClick(() => {
                 this.stopGame();
                 router.back();
@@ -463,6 +579,7 @@ struct GamePage {
               Text(`${this.gameMode === 'casual' ? '休闲模式' : '挑战模式'}`)
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
+                .fontColor(this.currentTheme.primaryText)
             }
             .layoutWeight(1)
             .justifyContent(FlexAlign.Center)
@@ -472,6 +589,7 @@ struct GamePage {
                 Text(`得分: ${this.game.getScore()}`)
                   .fontSize(18)
                   .fontWeight(FontWeight.Medium)
+                  .fontColor(this.currentTheme.primaryText)
                 
                 Text(`速度: ${this.game.getCurrentSpeedRatio().toFixed(1)}x`)
                   .fontSize(14)
@@ -484,7 +602,8 @@ struct GamePage {
                 .fontSize(24)
                 .width(40)
                 .height(40)
-                .backgroundColor('#E0E0E0')
+                .backgroundColor(this.currentTheme.borderColor)
+                .fontColor(this.currentTheme.primaryText)
                 .onClick(() => {
                   this.showMenuDialog = true;
                 })
@@ -500,17 +619,17 @@ struct GamePage {
             Column() {
               Text(`时间: ${this.currentTime}`)
                 .fontSize(16)
-                .fontColor('#666666')
+                .fontColor(this.currentTheme.secondaryText)
               
               Row() {
                 Text(`速度: ${this.game.getSpeed()}ms`)
                   .fontSize(14)
-                  .fontColor('#999999')
+                  .fontColor(this.currentTheme.hintText)
                 
-                if (this.game.getCharacter() === 'cat.png' && this.game.getMushroomImmunity() > 0) {
+                if ((this.game.getCharacter() === 'xiaomao.jpg' || this.game.getCharacter() === 'xiaom.jpg' || this.game.getCharacter() === 'cat.png') && this.game.getMushroomImmunity() > 0) {
                   Text(` | 🛡️×${this.game.getMushroomImmunity()}`)
                     .fontSize(14)
-                    .fontColor('#FF9800')
+                    .fontColor(this.currentTheme.accentColor)
                 }
               }
             }
@@ -522,26 +641,30 @@ struct GamePage {
                   Button('开始')
                     .fontSize(14)
                     .height(32)
-                    .backgroundColor('#4CAF50')
+                    .backgroundColor(this.currentTheme.successColor)
+                    .fontColor('#FFFFFF')
                     .onClick(() => this.startGame())
                 } else if (this.isPaused) {
                   Button('继续')
                     .fontSize(14)
                     .height(32)
-                    .backgroundColor('#4CAF50')
+                    .backgroundColor(this.currentTheme.successColor)
+                    .fontColor('#FFFFFF')
                     .onClick(() => this.resumeGame())
                 } else {
                   Button('暂停')
                     .fontSize(14)
                     .height(32)
-                    .backgroundColor('#FF9800')
+                    .backgroundColor(this.currentTheme.accentColor)
+                    .fontColor('#FFFFFF')
                     .onClick(() => this.pauseGame())
                 }
 
                 Button('重开')
                   .fontSize(14)
                   .height(32)
-                  .backgroundColor('#2196F3')
+                  .backgroundColor(this.currentTheme.buttonPrimary)
+                  .fontColor('#FFFFFF')
                   .margin({ left: 10 })
                   .onClick(() => this.restartGame())
               }
@@ -553,14 +676,14 @@ struct GamePage {
           .padding({ left: 20, right: 20 })
         }
         .width('100%')
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
 
         // 游戏区域
         Column() {
           Canvas(this.canvasContext)
             .width(this.game.getGridWidth() * this.cellSize)
             .height(this.game.getGridHeight() * this.cellSize)
-            .backgroundColor('#000000')
+            .backgroundColor('rgba(255, 255, 255, 0.3)')
             .onReady(() => {
               this.loadFruitImage();
               this.drawGame();
@@ -575,41 +698,42 @@ struct GamePage {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center)
-        .backgroundColor('#222222')
+        .backgroundColor('rgba(0, 0, 0, 0)')
 
         // 游戏结束提示
         if (this.game.isOver()) {
           Column() {
             Text('游戏结束!')
               .fontSize(36)
-              .fontColor('#FF0000')
+              .fontColor(this.currentTheme.dangerColor)
               .fontWeight(FontWeight.Bold)
               .margin({ bottom: 15 })
 
             Text(`得分: ${this.game.getScore()}`)
               .fontSize(24)
-              .fontColor('#333333')
+              .fontColor(this.currentTheme.primaryText)
               .margin({ bottom: 10 })
 
             Text(`存活时间: ${this.currentTime}`)
               .fontSize(20)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.secondaryText)
               .margin({ bottom: 30 })
 
             Button('重新开始')
               .fontSize(20)
               .width(160)
               .height(50)
-              .backgroundColor('#4CAF50')
+              .fontColor('#FFFFFF')
+              .backgroundColor(this.currentTheme.successColor)
               .onClick(() => {
                 this.restartGame();
               })
           }
           .width(300)
           .padding(30)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(this.currentTheme.secondaryBg)
           .borderRadius(16)
-          .shadow({ radius: 20, color: '#00000030' })
+          .shadow({ radius: 20, color: this.currentTheme.shadowColor })
           .position({ x: '50%', y: '40%' })
           .translate({ x: '-50%', y: '-50%' })
         }
@@ -619,19 +743,19 @@ struct GamePage {
           Column() {
             Text('游戏已暂停')
               .fontSize(32)
-              .fontColor('#FF9800')
+              .fontColor(this.currentTheme.accentColor)
               .fontWeight(FontWeight.Bold)
               .margin({ bottom: 20 })
 
             Text('点击"继续"或方向键恢复游戏')
               .fontSize(16)
-              .fontColor('#666666')
+              .fontColor(this.currentTheme.secondaryText)
           }
           .width(280)
           .padding(30)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor(this.currentTheme.secondaryBg)
           .borderRadius(16)
-          .shadow({ radius: 20, color: '#00000030' })
+          .shadow({ radius: 20, color: this.currentTheme.shadowColor })
           .position({ x: '50%', y: '40%' })
           .translate({ x: '-50%', y: '-50%' })
         }
@@ -644,8 +768,9 @@ struct GamePage {
                 .width(80)
                 .height(80)
                 .fontSize(32)
-                .backgroundColor('#2196F3')
-                .opacity(0.4)
+                .fontColor(this.currentTheme.primaryText)
+                .backgroundColor('rgba(0, 0, 0, 0)')
+                .border({ width: 2, color: this.currentTheme.buttonPrimary })
                 .onClick(() => this.handleDirection(Direction.UP))
             }
             .width('100%')
@@ -657,8 +782,9 @@ struct GamePage {
                 .width(80)
                 .height(80)
                 .fontSize(32)
-                .backgroundColor('#2196F3')
-                .opacity(0.4)
+                .fontColor(this.currentTheme.primaryText)
+                .backgroundColor('rgba(0, 0, 0, 0)')
+                .border({ width: 2, color: this.currentTheme.buttonPrimary })
                 .margin({ right: 10 })
                 .onClick(() => this.handleDirection(Direction.LEFT))
 
@@ -666,8 +792,9 @@ struct GamePage {
                 .width(80)
                 .height(80)
                 .fontSize(32)
-                .backgroundColor('#2196F3')
-                .opacity(0.4)
+                .fontColor(this.currentTheme.primaryText)
+                .backgroundColor('rgba(0, 0, 0, 0)')
+                .border({ width: 2, color: this.currentTheme.buttonPrimary })
                 .margin({ right: 10 })
                 .onClick(() => this.handleDirection(Direction.DOWN))
 
@@ -675,8 +802,9 @@ struct GamePage {
                 .width(80)
                 .height(80)
                 .fontSize(32)
-                .backgroundColor('#2196F3')
-                .opacity(0.4)
+                .fontColor(this.currentTheme.primaryText)
+                .backgroundColor('rgba(0, 0, 0, 0)')
+                .border({ width: 2, color: this.currentTheme.buttonPrimary })
                 .onClick(() => this.handleDirection(Direction.RIGHT))
             }
             .width('100%')
@@ -684,11 +812,12 @@ struct GamePage {
           }
           .width('100%')
           .padding({ top: 20, bottom: 40 })
-          .backgroundColor(Color.Transparent)
+          .backgroundColor('rgba(255, 255, 255, 0.1)')
         }
       }
       .width('100%')
       .height('100%')
+      .backgroundColor(this.bgImagePath ? 'rgba(0, 0, 0, 0)' : this.currentTheme.primaryBg)
 
       // 菜单弹窗
       if (this.showMenuDialog) {
@@ -734,12 +863,11 @@ struct GamePage {
     const gridWidth = this.game.getGridWidth();
     const gridHeight = this.game.getGridHeight();
 
-    // 清空画布
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, gridWidth * this.cellSize, gridHeight * this.cellSize);
+    // 清空画布 - 使用透明背景
+    ctx.clearRect(0, 0, gridWidth * this.cellSize, gridHeight * this.cellSize);
 
-    // 绘制网格线
-    ctx.strokeStyle = '#333333';
+    // 绘制网格线 - 根据主题设置网格线颜色
+    ctx.strokeStyle = this.currentTheme.name === 'light' ? '#E0E0E0' : '#333333';
     ctx.lineWidth = 1;
     for (let i = 0; i <= gridWidth; i++) {
       ctx.beginPath();
