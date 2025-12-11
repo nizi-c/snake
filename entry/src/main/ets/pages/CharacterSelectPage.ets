@@ -192,9 +192,16 @@ struct CharacterSelectPage {
                       }
                     }
                   } else {
-                    Text(`🔒 需要${character.unlockGames}局游戏解锁`)
-                      .fontSize(14)
-                      .fontColor(this.currentTheme.hintText)
+                    Row() {
+                      Image($rawfile('lock.png'))
+                        .width(16)
+                        .height(16)
+                        .margin({ right: 4 })
+                      
+                      Text(`需要${character.unlockGames}局游戏解锁`)
+                        .fontSize(14)
+                        .fontColor(this.currentTheme.hintText)
+                    }
                   }
                 }
                 .alignItems(HorizontalAlign.Start)

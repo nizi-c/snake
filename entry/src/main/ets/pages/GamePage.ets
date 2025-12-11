@@ -354,7 +354,7 @@ struct GamePage {
       }
     }
     
-    // 美食启程：累计收集10个食物
+    // 美食启程：累计收集6个食物
     await this.checkFoodCollectorAchievement();
   }
 
@@ -373,7 +373,7 @@ struct GamePage {
       
       console.info('Total foods collected:', newTotal);
       
-      if (newTotal >= 10) {
+      if (newTotal >= 6) {
         await this.achievementManager.unlockAchievement('food_collector', '美食启程');
       }
     } catch (err) {

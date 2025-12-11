@@ -48,7 +48,7 @@ struct AchievementPage {
       // 定义所有成就
       const allAchievements: Achievement[] = [
         { id: 'first_game', name: '初次邂逅', description: '完成第一局游戏', icon: '🎮', unlocked: false } as Achievement,
-        { id: 'food_collector', name: '美食启程', description: '累计收集10个食物', icon: '🍎', unlocked: false } as Achievement,
+        { id: 'food_collector', name: '美食启程', description: '累计收集6个食物', icon: '🍎', unlocked: false } as Achievement,
         { id: 'survival_master', name: '生存大师', description: '休闲模式存活超过5分钟', icon: '⏱️', unlocked: false } as Achievement,
         { id: 'score_maniac', name: '分数狂人', description: '休闲模式单局得分突破5000分', icon: '🏆', unlocked: false } as Achievement,
         { id: 'time_master', name: '时间管理大师', description: '挑战模式剩余超过1分钟完成目标', icon: '⚡', unlocked: false } as Achievement,
