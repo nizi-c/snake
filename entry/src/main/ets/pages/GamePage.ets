@@ -3,6 +3,7 @@ import { SnakeGame, Direction, Position, FoodType } from '../models/SnakeGame';
 import image from '@ohos.multimedia.image';
 import preferences from '@ohos.data.preferences';
 import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
+import { MusicManager } from '../models/MusicManager';
 
 interface FoodImageConfig {
   type: FoodType;
@@ -36,7 +37,9 @@ struct GamePage {
   @State currentCharacter: string = 'cat'; // 当前角色：cat, dog, rabbit, hamster
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
+  @State isMusicPlaying: boolean = false;
   private themeManager: ThemeManager = ThemeManager.getInstance();
+  private musicManager: MusicManager = MusicManager.getInstance();
   private hasShownSuccessDialog: boolean = false; // 标记是否已显示成功弹窗
   private timerId: number = -1;
   private cellSize: number = 30;
@@ -55,10 +58,18 @@ struct GamePage {
     // 加载控制方式
     await this.loadControlMode();
     
+    // 获取音乐状态
+    this.isMusicPlaying = this.musicManager.isPlayingMusic();
+    
     // 监听主题变化
     this.themeManager.addListener((theme: Theme) => {
       this.currentTheme = theme;
       this.updateBackgroundImage();
+    });
+    
+    // 监听音乐状态变化
+    this.musicManager.addListener((isPlaying: boolean) => {
+      this.isMusicPlaying = isPlaying;
     });
     
     await this.loadGameSettings();
@@ -85,6 +96,10 @@ struct GamePage {
     } catch (err) {
       console.error('Failed to save control mode:', err);
     }
+  }
+
+  toggleMusic() {
+    this.musicManager.toggle();
   }
 
   updateBackgroundImage() {
@@ -471,7 +486,7 @@ struct GamePage {
         .height(50)
         .fontSize(18)
         .fontColor('#FFFFFF')
-        .backgroundColor(this.currentTheme.buttonPrimary)
+        .backgroundColor(this.currentTheme.name === 'dark' ? '#D4AF37' : this.currentTheme.buttonPrimary)
         .margin({ bottom: 15 })
         .onClick(() => {
           this.showMenuDialog = false;
@@ -874,36 +889,43 @@ struct GamePage {
 
             // 休闲模式和挑战模式都显示控制按钮
             Row() {
-              if (!this.isPlaying || this.game.isOver()) {
-                Button('开始')
+              Row() {
+                if (!this.isPlaying || this.game.isOver()) {
+                  Button('开始')
+                    .fontSize(14)
+                    .height(32)
+                    .backgroundColor(this.currentTheme.successColor)
+                    .fontColor('#FFFFFF')
+                    .onClick(() => this.startGame())
+                } else if (this.isPaused) {
+                  Button('继续')
+                    .fontSize(14)
+                    .height(32)
+                    .backgroundColor(this.currentTheme.successColor)
+                    .fontColor('#FFFFFF')
+                    .onClick(() => this.resumeGame())
+                } else {
+                  Button('暂停')
+                    .fontSize(14)
+                    .height(32)
+                    .backgroundColor(this.currentTheme.accentColor)
+                    .fontColor('#FFFFFF')
+                    .onClick(() => this.pauseGame())
+                }
+
+                Button('重开')
                   .fontSize(14)
                   .height(32)
-                  .backgroundColor(this.currentTheme.successColor)
+                  .backgroundColor(this.currentTheme.buttonPrimary)
                   .fontColor('#FFFFFF')
-                  .onClick(() => this.startGame())
-              } else if (this.isPaused) {
-                Button('继续')
-                  .fontSize(14)
-                  .height(32)
-                  .backgroundColor(this.currentTheme.successColor)
-                  .fontColor('#FFFFFF')
-                  .onClick(() => this.resumeGame())
-              } else {
-                Button('暂停')
-                  .fontSize(14)
-                  .height(32)
-                  .backgroundColor(this.currentTheme.accentColor)
-                  .fontColor('#FFFFFF')
-                  .onClick(() => this.pauseGame())
+                  .margin({ left: 10 })
+                  .onClick(() => this.restartGame())
               }
 
-              Button('重开')
-                .fontSize(14)
+              Image($rawfile(this.isMusicPlaying ? 'bofang.png' : 'bofang_n.png'))
+                .width(32)
                 .height(32)
-                .backgroundColor(this.currentTheme.buttonPrimary)
-                .fontColor('#FFFFFF')
-                .margin({ left: 10 })
-                .onClick(() => this.restartGame())
+                .onClick(() => this.toggleMusic())
             }
           }
           .width('100%')

@@ -19,7 +19,7 @@ struct CharacterSelectPage {
     { name: '小猫', image: 'xiaomao.jpg', description: '免疫3次蘑菇扣分' } as CharacterInfo,
     { name: '小狗', image: 'xiaogou.jpg', description: '速度+10%，分数效果×2' } as CharacterInfo,
     { name: '兔子', image: 'tuzi.jpg', description: '速度变化×2，分数效果+50%' } as CharacterInfo,
-    { name: '仓鼠', image: 'cangshu.png', description: '初始100分，速度-10%，减分+200%' } as CharacterInfo
+    { name: '仓鼠', image: 'cangshu.jpg', description: '初始100分，速度-10%，减分+200%' } as CharacterInfo
   ];
 
   async aboutToAppear() {

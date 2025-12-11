@@ -1,5 +1,6 @@
 import router from '@ohos.router';
 import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
+import { MusicManager } from '../models/MusicManager';
 
 @Entry
 @Component
@@ -7,8 +8,11 @@ struct HomePage {
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
   private themeManager: ThemeManager = ThemeManager.getInstance();
+  private musicManager: MusicManager = MusicManager.getInstance();
 
   async aboutToAppear() {
+    console.info('HomePage aboutToAppear started');
+    
     await this.themeManager.loadTheme(getContext(this));
     this.currentTheme = this.themeManager.getTheme();
     
@@ -20,6 +24,15 @@ struct HomePage {
       this.currentTheme = theme;
       // 主题变化时更新背景图片
       this.updateBackgroundImage();
+    });
+    
+    console.info('HomePage aboutToAppear completed');
+    
+    // 在后台初始化背景音乐，不阻塞页面渲染
+    this.musicManager.init(getContext(this)).then(() => {
+      console.info('Music manager initialized in background');
+    }).catch((err: Error) => {
+      console.error('Failed to initialize music manager:', err);
     });
   }
 
@@ -43,6 +56,12 @@ struct HomePage {
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
+          .onComplete(() => {
+            console.info('Background image loaded:', this.bgImagePath);
+          })
+          .onError(() => {
+            console.error('Failed to load background image:', this.bgImagePath);
+          })
       }
 
       Column() {

@@ -1,12 +1,16 @@
 import router from '@ohos.router';
 import { ThemeManager, LightTheme, DarkTheme, Theme } from '../models/ThemeManager';
+import { MusicManager } from '../models/MusicManager';
 
 @Entry
 @Component
 struct ThemeSettingsPage {
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
+  @State isMusicEnabled: boolean = true;
+  @State musicVolume: number = 0.5;
   private themeManager: ThemeManager = ThemeManager.getInstance();
+  private musicManager: MusicManager = MusicManager.getInstance();
 
   async aboutToAppear() {
     await this.themeManager.loadTheme(getContext(this));
@@ -15,10 +19,20 @@ struct ThemeSettingsPage {
     // 设置背景图片
     this.updateBackgroundImage();
     
+    // 加载音乐状态
+    this.isMusicEnabled = this.musicManager.isPlayingMusic();
+    this.musicVolume = this.musicManager.getVolume();
+    
     // 监听主题变化
     this.themeManager.addListener((theme: Theme) => {
       this.currentTheme = theme;
       this.updateBackgroundImage();
+    });
+    
+    // 监听音乐状态变化
+    this.musicManager.addListener((isPlaying: boolean, volume: number) => {
+      this.isMusicEnabled = isPlaying;
+      this.musicVolume = volume;
     });
   }
 
@@ -90,6 +104,94 @@ struct ThemeSettingsPage {
       // 设置列表
       Scroll() {
         Column() {
+          // 音乐设置分组
+          Column() {
+            Text('音乐设置')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.currentTheme.secondaryText)
+              .width('100%')
+              .padding({ left: 20, top: 20, bottom: 10 })
+
+            // 背景音乐开关
+            Row() {
+              Text('🎵')
+                .fontSize(32)
+                .margin({ right: 15 })
+
+              Column() {
+                Text('背景音乐')
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.currentTheme.primaryText)
+                  .margin({ bottom: 4 })
+
+                Text(this.isMusicEnabled ? '正在播放' : '已暂停')
+                  .fontSize(14)
+                  .fontColor(this.currentTheme.secondaryText)
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+
+              Toggle({ type: ToggleType.Switch, isOn: this.isMusicEnabled })
+                .selectedColor(this.currentTheme.successColor)
+                .onChange((isOn: boolean) => {
+                  console.info('Music toggle changed to:', isOn);
+                  if (isOn) {
+                    this.musicManager.play();
+                  } else {
+                    this.musicManager.pause();
+                  }
+                })
+            }
+            .width('100%')
+            .padding({ left: 20, right: 20, top: 15, bottom: 15 })
+            .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.6))
+            .borderRadius(12)
+            .margin({ left: 15, right: 15, bottom: 10 })
+            .onClick(() => {
+              console.info('Music card clicked, current state - isPlaying:', this.isMusicEnabled, 'volume:', this.musicVolume);
+            })
+
+            // 音量调节
+            Column() {
+              Row() {
+                Text('音量')
+                  .fontSize(16)
+                  .fontColor(this.currentTheme.primaryText)
+                  .layoutWeight(1)
+
+                Text(`${Math.round(this.musicVolume * 100)}%`)
+                  .fontSize(16)
+                  .fontColor(this.currentTheme.accentColor)
+                  .fontWeight(FontWeight.Bold)
+              }
+              .width('100%')
+              .margin({ bottom: 10 })
+
+              Slider({
+                value: this.musicVolume * 100,
+                min: 0,
+                max: 100,
+                step: 5,
+                style: SliderStyle.OutSet
+              })
+                .width('100%')
+                .trackColor(this.currentTheme.borderColor)
+                .selectedColor(this.currentTheme.accentColor)
+                .showSteps(false)
+                .showTips(true)
+                .onChange((value: number) => {
+                  this.musicManager.setVolume(value / 100);
+                })
+            }
+            .width('100%')
+            .padding({ left: 20, right: 20, top: 15, bottom: 15 })
+            .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.6))
+            .borderRadius(12)
+            .margin({ left: 15, right: 15, bottom: 20 })
+          }
+
           // 主题设置分组
           Column() {
             Text('主题设置')

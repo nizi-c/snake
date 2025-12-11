@@ -146,7 +146,8 @@ export class SnakeGame {
         // 兔子：速度变化效果翻倍，分数效果+50%
         // 特性在吃食物时应用
         break;
-      case 'cangshu.png':
+      case 'cangshu.jpg':
+      case 'cangshu.png': // 兼容旧数据
         // 仓鼠：初始100分，速度减慢10%
         this.score = 100;
         this.baseSpeed = Math.floor(this.baseSpeed * 1.1);
@@ -503,7 +504,7 @@ export class SnakeGame {
         }
         
         // 仓鼠特性：减分+200%
-        if (this.character === 'cangshu.png' && scoreChange < 0) {
+        if ((this.character === 'cangshu.jpg' || this.character === 'cangshu.png') && scoreChange < 0) {
           scoreChange = Math.floor(scoreChange * 3); // 减分增加200%（变为3倍）
           console.info(`Hamster penalty: negative score increased to ${scoreChange}`);
         }
