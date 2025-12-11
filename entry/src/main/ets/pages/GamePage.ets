@@ -4,6 +4,7 @@ import image from '@ohos.multimedia.image';
 import preferences from '@ohos.data.preferences';
 import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
 import { MusicManager } from '../models/MusicManager';
+import { AchievementManager } from '../models/AchievementManager';
 
 interface FoodImageConfig {
   type: FoodType;
@@ -35,6 +36,8 @@ struct GamePage {
   @State showRulesDialog: boolean = false;
   @State showUnlockDialog: boolean = false;
   @State unlockedCharacterName: string = '';
+  @State showAchievementDialog: boolean = false;
+  @State unlockedAchievementName: string = '';
   @State dialogSize: number = 300;
   @State currentCharacter: string = 'cat'; // 当前角色：cat, dog, rabbit, hamster
   @State currentTheme: Theme = LightTheme;
@@ -42,7 +45,9 @@ struct GamePage {
   @State isMusicPlaying: boolean = false;
   private themeManager: ThemeManager = ThemeManager.getInstance();
   private musicManager: MusicManager = MusicManager.getInstance();
+  private achievementManager: AchievementManager = AchievementManager.getInstance();
   private hasShownSuccessDialog: boolean = false; // 标记是否已显示成功弹窗
+  private totalFoodsCollected: number = 0; // 累计收集的食物数
   private timerId: number = -1;
   private cellSize: number = 30;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
@@ -72,6 +77,17 @@ struct GamePage {
     // 监听音乐状态变化
     this.musicManager.addListener((isPlaying: boolean) => {
       this.isMusicPlaying = isPlaying;
+    });
+    
+    // 监听成就解锁
+    this.achievementManager.addListener((achievementId: string, name: string) => {
+      this.unlockedAchievementName = name;
+      this.showAchievementDialog = true;
+      
+      // 3秒后自动隐藏提示
+      setTimeout(() => {
+        this.showAchievementDialog = false;
+      }, 3000);
     });
     
     await this.loadGameSettings();
@@ -311,10 +327,65 @@ struct GamePage {
       // 检查是否解锁新角色
       this.checkCharacterUnlock(totalGames, newTotalGames);
       
+      // 检查成就
+      await this.checkAchievements(record);
+      
       await prefs.flush();
       console.info('Game record saved:', record, 'Total games:', newTotalGames);
     } catch (err) {
       console.error('Failed to save game record:', err);
+    }
+  }
+
+  async checkAchievements(record: GameRecord) {
+    // 初次邂逅：完成第一局游戏
+    await this.achievementManager.unlockAchievement('first_game', '初次邂逅');
+    
+    // 分数狂人：休闲模式单局得分突破5000分
+    if (record.mode === 'casual' && record.score >= 5000) {
+      await this.achievementManager.unlockAchievement('score_maniac', '分数狂人');
+    }
+    
+    // 生存大师：休闲模式存活超过5分钟
+    if (record.mode === 'casual') {
+      const survivalSeconds = this.game.getSurvivalTime();
+      if (survivalSeconds >= 300) {
+        await this.achievementManager.unlockAchievement('survival_master', '生存大师');
+      }
+    }
+    
+    // 美食启程：累计收集10个食物
+    await this.checkFoodCollectorAchievement();
+  }
+
+  async checkFoodCollectorAchievement() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      
+      // 获取累计食物数
+      const totalFoods = await prefs.get('totalFoodsCollected', 0) as number;
+      const currentGameFoods = this.game.getTotalFoodsEaten();
+      const newTotal = totalFoods + currentGameFoods;
+      
+      await prefs.put('totalFoodsCollected', newTotal);
+      await prefs.flush();
+      
+      console.info('Total foods collected:', newTotal);
+      
+      if (newTotal >= 10) {
+        await this.achievementManager.unlockAchievement('food_collector', '美食启程');
+      }
+    } catch (err) {
+      console.error('Failed to check food collector achievement:', err);
+    }
+  }
+
+  async checkQuickEaterAchievement() {
+    // 检查最后吃掉的食物是否在3秒内
+    if (this.game.wasLastFoodEatenQuickly()) {
+      await this.achievementManager.unlockAchievement('quick_eater', '贪吃鬼');
+      console.info('Quick eater achievement unlocked!');
     }
   }
 
@@ -366,10 +437,59 @@ struct GamePage {
         await prefs.put('unlockedLevel', levelId + 1);
       }
       
+      // 检查挑战模式成就
+      await this.checkChallengeAchievements();
+      
       await prefs.flush();
       console.info('Challenge record saved - Level:', levelId, 'Time:', usedTime);
     } catch (err) {
       console.error('Failed to save challenge record:', err);
+    }
+  }
+
+  async checkChallengeAchievements() {
+    const remainingTime = this.game.getRemainingTime();
+    const lives = this.game.getLives();
+    
+    // 时间管理大师：剩余超过1分钟完成目标
+    if (remainingTime > 60) {
+      await this.achievementManager.unlockAchievement('time_master', '时间管理大师');
+    }
+    
+    // 无伤挑战者：不消耗生命通关
+    if (lives === 3) {
+      await this.achievementManager.unlockAchievement('no_damage', '无伤挑战者');
+    }
+    
+    // 最后一秒：倒计时最后1秒内达成目标通关
+    if (remainingTime <= 1) {
+      await this.achievementManager.unlockAchievement('last_second', '最后一秒');
+    }
+    
+    // 最佳收集者：连续3次挑战通关且每次剩余生命≥2
+    await this.checkBestCollectorAchievement(lives);
+  }
+
+  async checkBestCollectorAchievement(lives: number) {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      
+      if (lives >= 2) {
+        const streak = await prefs.get('challengeStreak', 0) as number;
+        const newStreak = streak + 1;
+        await prefs.put('challengeStreak', newStreak);
+        
+        if (newStreak >= 3) {
+          await this.achievementManager.unlockAchievement('best_collector', '最佳收集者');
+        }
+      } else {
+        await prefs.put('challengeStreak', 0);
+      }
+      
+      await prefs.flush();
+    } catch (err) {
+      console.error('Failed to check best collector achievement:', err);
     }
   }
 
@@ -397,7 +517,15 @@ struct GamePage {
   gameLoop() {
     if (!this.isPlaying || this.isPaused) return;
 
+    const oldFoodCount = this.game.getTotalFoodsEaten();
     const success = this.game.update();
+    const newFoodCount = this.game.getTotalFoodsEaten();
+    
+    // 检查是否吃到了食物（贪吃鬼成就）
+    if (newFoodCount > oldFoodCount) {
+      this.checkQuickEaterAchievement();
+    }
+    
     this.updateFlag++;
     this.currentTime = this.game.getFormattedTime();
     this.drawGame();
@@ -1123,6 +1251,42 @@ struct GamePage {
           .borderRadius(12)
           .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.3)' })
           .position({ x: '50%', y: 60 })
+          .translate({ x: '-50%', y: 0 })
+          .animation({
+            duration: 300,
+            curve: Curve.EaseOut
+          })
+        }
+
+        // 成就解锁提示（顶部消息通知）
+        if (this.showAchievementDialog) {
+          Row() {
+            Image($rawfile('award.png'))
+              .width(40)
+              .height(40)
+              .margin({ right: 12 })
+
+            Column() {
+              Text('🎉 成就解锁')
+                .fontSize(16)
+                .fontColor('#FFFFFF')
+                .fontWeight(FontWeight.Bold)
+                .margin({ bottom: 4 })
+
+              Text(`恭喜获得「${this.unlockedAchievementName}」成就！`)
+                .fontSize(14)
+                .fontColor('#FFFFFF')
+                .opacity(0.9)
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+          }
+          .width('90%')
+          .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+          .backgroundColor('#4CAF50')
+          .borderRadius(12)
+          .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.3)' })
+          .position({ x: '50%', y: this.showUnlockDialog ? 120 : 60 })
           .translate({ x: '-50%', y: 0 })
           .animation({
             duration: 300,

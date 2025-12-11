@@ -1,6 +1,7 @@
 import router from '@ohos.router';
 import { ThemeManager, LightTheme, Theme } from '../models/ThemeManager';
 import { MusicManager } from '../models/MusicManager';
+import { AchievementManager } from '../models/AchievementManager';
 
 @Entry
 @Component
@@ -9,6 +10,7 @@ struct HomePage {
   @State bgImagePath: string = '';
   private themeManager: ThemeManager = ThemeManager.getInstance();
   private musicManager: MusicManager = MusicManager.getInstance();
+  private achievementManager: AchievementManager = AchievementManager.getInstance();
 
   async aboutToAppear() {
     console.info('HomePage aboutToAppear started');
@@ -28,11 +30,17 @@ struct HomePage {
     
     console.info('HomePage aboutToAppear completed');
     
-    // 在后台初始化背景音乐，不阻塞页面渲染
+    // 在后台初始化背景音乐和成就系统，不阻塞页面渲染
     this.musicManager.init(getContext(this)).then(() => {
       console.info('Music manager initialized in background');
     }).catch((err: Error) => {
       console.error('Failed to initialize music manager:', err);
+    });
+    
+    this.achievementManager.init(getContext(this)).then(() => {
+      console.info('Achievement manager initialized in background');
+    }).catch((err: Error) => {
+      console.error('Failed to initialize achievement manager:', err);
     });
   }
 

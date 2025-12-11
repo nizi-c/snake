@@ -7,6 +7,7 @@
     "pages/CharacterSelectPage",
     "pages/HistoryPage",
     "pages/ThemeSettingsPage",
-    "pages/ChallengeLevelPage"
+    "pages/ChallengeLevelPage",
+    "pages/AchievementPage"
   ]
 }

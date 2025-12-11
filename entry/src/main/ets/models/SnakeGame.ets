@@ -53,6 +53,8 @@ export class SnakeGame {
   private readonly FOOD_LIFETIME: number = 10000; // 10秒
   private character: string = 'xiaomao.jpg'; // 当前角色
   private mushroomImmunity: number = 0; // 蘑菇免疫次数
+  private totalFoodsEaten: number = 0; // 本局吃掉的食物总数
+  private lastFoodWasQuick: boolean = false; // 最后吃掉的食物是否在3秒内
 
   constructor(speed: number = 200, gridWidth: number = 28, gridHeight: number = 18, character: string = 'xiaomao.jpg', 
               isChallengeMode: boolean = false, timeLimit: number = 180, targetScore: number = 0) {
@@ -86,6 +88,8 @@ export class SnakeGame {
     this.lastFoodSpawnTime = Date.now();
     this.speedMultiplier = 1.0; // 重置速度倍数
     this.mushroomImmunity = 0; // 重置蘑菇免疫次数
+    this.totalFoodsEaten = 0; // 重置食物计数
+    this.lastFoodWasQuick = false; // 重置快速吃食物标志
     
     // 重置速度为原始速度
     this.baseSpeed = this.originalSpeed;
@@ -164,6 +168,14 @@ export class SnakeGame {
 
   getMushroomImmunity(): number {
     return this.mushroomImmunity;
+  }
+
+  getTotalFoodsEaten(): number {
+    return this.totalFoodsEaten;
+  }
+
+  wasLastFoodEatenQuickly(): boolean {
+    return this.lastFoodWasQuick;
   }
 
   getCharacter(): string {
@@ -532,9 +544,17 @@ export class SnakeGame {
         // 限制速度倍数范围（0.5到2.0之间）
         this.speedMultiplier = Math.max(0.5, Math.min(2.0, this.speedMultiplier));
         
+        // 记录食物数据用于成就检查
+        const foodEatenTime: number = Date.now();
+        const foodSpawnTime: number = this.foods[i].createTime;
+        const timeSinceSpawn: number = (foodEatenTime - foodSpawnTime) / 1000; // 转换为秒
+        
+        this.totalFoodsEaten++;
+        this.lastFoodWasQuick = timeSinceSpawn <= 3.0;
+        
         this.foods.splice(i, 1);
         ateFood = true;
-        console.info(`Ate ${FoodType[foodType]}, score: ${scoreChange}, speed effect: ${speedEffect}, multiplier: ${this.speedMultiplier.toFixed(2)}`);
+        console.info(`Ate ${FoodType[foodType]}, score: ${scoreChange}, speed effect: ${speedEffect}, multiplier: ${this.speedMultiplier.toFixed(2)}, time since spawn: ${timeSinceSpawn.toFixed(1)}s, quick: ${this.lastFoodWasQuick}`);
         break;
       }
     }
