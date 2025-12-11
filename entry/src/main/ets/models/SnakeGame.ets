@@ -33,6 +33,7 @@ export class SnakeGame {
   private direction: Direction = Direction.RIGHT;
   private nextDirection: Direction = Direction.RIGHT;
   private score: number = 0;
+  private initialScore: number = 0; // 初始分数（用于仓鼠等特殊角色）
   private isGameOver: boolean = false;
   private speed: number = 200;
   private baseSpeed: number = 200;
@@ -72,19 +73,23 @@ export class SnakeGame {
     const centerX = Math.floor(this.gridWidth / 2);
     const centerY = Math.floor(this.gridHeight / 2);
     this.snake = [
-      { x: centerX, y: centerY },
-      { x: centerX - 1, y: centerY },
-      { x: centerX - 2, y: centerY }
+      { x: centerX, y: centerY }
     ];
     this.direction = Direction.RIGHT;
     this.nextDirection = Direction.RIGHT;
     this.score = 0;
+    this.initialScore = 0; // 重置初始分数
     this.isGameOver = false;
     this.startTime = Date.now();
     this.survivalTime = 0;
     this.foods = [];
     this.lastFoodSpawnTime = Date.now();
     this.speedMultiplier = 1.0; // 重置速度倍数
+    this.mushroomImmunity = 0; // 重置蘑菇免疫次数
+    
+    // 重置速度为原始速度
+    this.baseSpeed = this.originalSpeed;
+    this.speed = this.baseSpeed;
     
     // 挑战模式初始化
     if (this.isChallengeMode) {
@@ -116,9 +121,7 @@ export class SnakeGame {
     const centerX = Math.floor(this.gridWidth / 2);
     const centerY = Math.floor(this.gridHeight / 2);
     this.snake = [
-      { x: centerX, y: centerY },
-      { x: centerX - 1, y: centerY },
-      { x: centerX - 2, y: centerY }
+      { x: centerX, y: centerY }
     ];
     this.direction = Direction.RIGHT;
     this.nextDirection = Direction.RIGHT;
@@ -150,6 +153,7 @@ export class SnakeGame {
       case 'cangshu.png': // 兼容旧数据
         // 仓鼠：初始100分，速度减慢10%
         this.score = 100;
+        this.initialScore = 100; // 记录初始分数
         this.baseSpeed = Math.floor(this.baseSpeed * 1.1);
         this.speed = this.baseSpeed;
         break;
@@ -236,7 +240,9 @@ export class SnakeGame {
   getSpeed(): number {
     // 根据分数计算当前速度
     // 每50分速度加快10%（时间间隔减少10%）
-    const speedLevel = Math.floor(this.score / 50);
+    // 对于有初始分数的角色（如仓鼠），减去初始分数后再计算加速
+    const effectiveScore = Math.max(0, this.score - this.initialScore);
+    const speedLevel = Math.floor(effectiveScore / 50);
     const scoreSpeedMultiplier = Math.pow(0.9, speedLevel); // 每级速度提升10%
     
     // 综合分数加速和食物效果
