@@ -33,6 +33,8 @@ struct GamePage {
   @State showCharacterDialog: boolean = false;
   @State showChallengeSuccessDialog: boolean = false;
   @State showRulesDialog: boolean = false;
+  @State showUnlockDialog: boolean = false;
+  @State unlockedCharacterName: string = '';
   @State dialogSize: number = 300;
   @State currentCharacter: string = 'cat'; // 当前角色：cat, dog, rabbit, hamster
   @State currentTheme: Theme = LightTheme;
@@ -300,10 +302,39 @@ struct GamePage {
       }
 
       await prefs.put('gameHistory', JSON.stringify(history));
+      
+      // 增加总游戏次数并检查角色解锁
+      const totalGames = await prefs.get('totalGames', 0) as number;
+      const newTotalGames = totalGames + 1;
+      await prefs.put('totalGames', newTotalGames);
+      
+      // 检查是否解锁新角色
+      this.checkCharacterUnlock(totalGames, newTotalGames);
+      
       await prefs.flush();
-      console.info('Game record saved:', record);
+      console.info('Game record saved:', record, 'Total games:', newTotalGames);
     } catch (err) {
       console.error('Failed to save game record:', err);
+    }
+  }
+
+  checkCharacterUnlock(oldGames: number, newGames: number) {
+    const unlockMap: Record<number, string> = {
+      2: '小狗',
+      5: '兔子',
+      8: '仓鼠'
+    };
+
+    // 检查是否刚好达到解锁条件
+    if (unlockMap[newGames]) {
+      this.unlockedCharacterName = unlockMap[newGames];
+      this.showUnlockDialog = true;
+      console.info('Character unlocked:', this.unlockedCharacterName);
+      
+      // 3秒后自动隐藏提示
+      setTimeout(() => {
+        this.showUnlockDialog = false;
+      }, 3000);
     }
   }
 
@@ -584,7 +615,7 @@ struct GamePage {
               .fontWeight(FontWeight.Medium)
               .margin({ bottom: 5 })
 
-            Text('使用屏幕下方的方向按钮控制蛇的移动方向')
+            Text('使用屏幕下方的方向按钮控制小动物的移动方向')
               .fontSize(14)
               .fontColor(this.currentTheme.secondaryText)
           }
@@ -618,7 +649,7 @@ struct GamePage {
               .fontWeight(FontWeight.Medium)
               .margin({ bottom: 5 })
 
-            Text('点击游戏区域：蛇右侧右转，蛇左侧左转')
+            Text('点击游戏区域：小动物右侧右转，左侧左转')
               .fontSize(14)
               .fontColor(this.currentTheme.secondaryText)
           }
@@ -1060,6 +1091,42 @@ struct GamePage {
           .translate({ x: '-50%', y: '-50%' })
           .onClick(() => {
             router.back();
+          })
+        }
+
+        // 角色解锁提示（顶部消息通知）
+        if (this.showUnlockDialog) {
+          Row() {
+            Image($rawfile('star.png'))
+              .width(40)
+              .height(40)
+              .margin({ right: 12 })
+
+            Column() {
+              Text('🎉 恭喜解锁新角色')
+                .fontSize(16)
+                .fontColor('#FFFFFF')
+                .fontWeight(FontWeight.Bold)
+                .margin({ bottom: 4 })
+
+              Text(`${this.unlockedCharacterName}已解锁，快去试试吧！`)
+                .fontSize(14)
+                .fontColor('#FFFFFF')
+                .opacity(0.9)
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+          }
+          .width('90%')
+          .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+          .backgroundColor('#FF9800')
+          .borderRadius(12)
+          .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.3)' })
+          .position({ x: '50%', y: 60 })
+          .translate({ x: '-50%', y: 0 })
+          .animation({
+            duration: 300,
+            curve: Curve.EaseOut
           })
         }
 

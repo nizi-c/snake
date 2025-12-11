@@ -6,6 +6,7 @@ interface CharacterInfo {
   name: string;
   image: string;
   description: string;
+  unlockGames: number; // 解锁所需游戏次数
 }
 
 @Entry
@@ -14,12 +15,13 @@ struct CharacterSelectPage {
   @State selectedCharacter: string = 'cat.png';
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
+  @State totalGames: number = 0; // 总游戏次数
   private themeManager: ThemeManager = ThemeManager.getInstance();
   private characters: CharacterInfo[] = [
-    { name: '小猫', image: 'xiaomao.jpg', description: '免疫3次蘑菇扣分' } as CharacterInfo,
-    { name: '小狗', image: 'xiaogou.jpg', description: '速度+10%，分数效果×2' } as CharacterInfo,
-    { name: '兔子', image: 'tuzi.jpg', description: '速度变化×2，分数效果+50%' } as CharacterInfo,
-    { name: '仓鼠', image: 'cangshu.jpg', description: '初始100分，移动变慢10%，减分+200%' } as CharacterInfo
+    { name: '小猫', image: 'xiaomao.jpg', description: '免疫3次蘑菇扣分', unlockGames: 0 } as CharacterInfo,
+    { name: '小狗', image: 'xiaogou.jpg', description: '速度+10%，分数效果×2', unlockGames: 2 } as CharacterInfo,
+    { name: '兔子', image: 'tuzi.jpg', description: '速度变化×2，分数效果+50%', unlockGames: 5 } as CharacterInfo,
+    { name: '仓鼠', image: 'cangshu.jpg', description: '初始100分，移动变慢10%，减分+200%', unlockGames: 8 } as CharacterInfo
   ];
 
   async aboutToAppear() {
@@ -34,7 +36,19 @@ struct CharacterSelectPage {
       this.updateBackgroundImage();
     });
     
+    await this.loadTotalGames();
     await this.loadSelectedCharacter();
+  }
+
+  async loadTotalGames() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      this.totalGames = await prefs.get('totalGames', 0) as number;
+      console.info('Total games played:', this.totalGames);
+    } catch (err) {
+      console.error('Failed to load total games:', err);
+    }
   }
 
   aboutToDisappear() {
@@ -65,6 +79,10 @@ struct CharacterSelectPage {
     } catch (err) {
       console.error('Failed to save character:', err);
     }
+  }
+
+  isCharacterUnlocked(character: CharacterInfo): boolean {
+    return this.totalGames >= character.unlockGames;
   }
 
   updateBackgroundImage() {
@@ -134,50 +152,61 @@ struct CharacterSelectPage {
 
           // 角色卡片
           ForEach(this.characters, (character: CharacterInfo) => {
-            Row() {
-              // 左侧图片
-              Column() {
-                Image($rawfile(character.image))
-                  .width(100)
-                  .height(100)
-                  .objectFit(ImageFit.Contain)
-                  .borderRadius(8)
-              }
-              .width(120)
-              .height(120)
-              .justifyContent(FlexAlign.Center)
-              .backgroundColor('#F5F5F5')
-              .borderRadius(8)
+            Stack() {
+              Row() {
+                // 左侧图片
+                Column() {
+                  Image($rawfile(character.image))
+                    .width(100)
+                    .height(100)
+                    .objectFit(ImageFit.Contain)
+                    .borderRadius(8)
+                    .opacity(this.isCharacterUnlocked(character) ? 1.0 : 0.3)
+                }
+                .width(120)
+                .height(120)
+                .justifyContent(FlexAlign.Center)
+                .backgroundColor('#F5F5F5')
+                .borderRadius(8)
 
-              // 右侧文字信息
-              Column() {
-                Text(character.name)
-                  .fontSize(22)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.currentTheme.primaryText)
-                  .margin({ bottom: 8 })
+                // 右侧文字信息
+                Column() {
+                  Text(character.name)
+                    .fontSize(22)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.currentTheme.primaryText)
+                    .margin({ bottom: 8 })
 
-                Text(character.description)
-                  .fontSize(15)
-                  .fontColor(this.currentTheme.secondaryText)
-                  .margin({ bottom: 10 })
+                  Text(character.description)
+                    .fontSize(15)
+                    .fontColor(this.currentTheme.secondaryText)
+                    .margin({ bottom: 10 })
 
-                if (this.selectedCharacter === character.image) {
-                  Row() {
-                    Text('✓ 已选择')
+                  if (this.isCharacterUnlocked(character)) {
+                    if (this.selectedCharacter === character.image) {
+                      Row() {
+                        Text('✓ 已选择')
+                          .fontSize(14)
+                          .fontColor(this.currentTheme.successColor)
+                          .fontWeight(FontWeight.Medium)
+                      }
+                    }
+                  } else {
+                    Text(`🔒 需要${character.unlockGames}局游戏解锁`)
                       .fontSize(14)
-                      .fontColor(this.currentTheme.successColor)
-                      .fontWeight(FontWeight.Medium)
+                      .fontColor(this.currentTheme.hintText)
                   }
                 }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                .padding({ left: 20 })
               }
-              .alignItems(HorizontalAlign.Start)
-              .layoutWeight(1)
-              .padding({ left: 20 })
+              .width('100%')
+              .height(140)
+              .padding(10)
             }
             .width('100%')
             .height(140)
-            .padding(10)
             .backgroundColor(this.selectedCharacter === character.image ? this.getTransparentBg(this.currentTheme.cardBg, 0.6) : this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
             .borderRadius(12)
             .margin({ bottom: 15 })
@@ -190,7 +219,9 @@ struct CharacterSelectPage {
               color: this.currentTheme.shadowColor
             })
             .onClick(() => {
-              this.saveCharacter(character.image);
+              if (this.isCharacterUnlocked(character)) {
+                this.saveCharacter(character.image);
+              }
             })
           })
 

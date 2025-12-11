@@ -208,13 +208,13 @@ struct ThemeSettingsPage {
                 .margin({ right: 15 })
 
               Column() {
-                Text('浅色主题')
+                Text('蜜糖日光')
                   .fontSize(18)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.currentTheme.primaryText)
                   .margin({ bottom: 4 })
 
-                Text('明媚温暖柔和')
+                Text('阳光正好，不急不躁')
                   .fontSize(14)
                   .fontColor(this.currentTheme.secondaryText)
               }
@@ -246,13 +246,13 @@ struct ThemeSettingsPage {
                 .margin({ right: 15 })
 
               Column() {
-                Text('深色主题')
+                Text('溪畔微风')
                   .fontSize(18)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.currentTheme.primaryText)
                   .margin({ bottom: 4 })
 
-                Text('天蓝色系')
+                Text('甜梦初醒，漫步收集')
                   .fontSize(14)
                   .fontColor(this.currentTheme.secondaryText)
               }
