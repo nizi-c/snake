@@ -510,6 +510,7 @@ export class SnakeGame {
         const foodType = this.foods[i].type;
         let scoreChange = this.getFoodScore(foodType);
         const speedEffect = this.getFoodSpeedEffect(foodType);
+        const originalScoreChange = scoreChange; // 保存原始分数变化用于音效判断
         
         // 小猫特性：免疫蘑菇扣分
         if (foodType === FoodType.MUSHROOM && scoreChange < 0 && this.mushroomImmunity > 0) {
@@ -555,10 +556,15 @@ export class SnakeGame {
         this.totalFoodsEaten++;
         this.lastFoodWasQuick = timeSinceSpawn <= 3.0;
         
-        // 播放音效：加分食物或减速食物（柠檬）
-        if (scoreChange > 0 || foodType === FoodType.LEMON) {
-          console.info('Triggering sound effect for food type:', FoodType[foodType], 'scoreChange:', scoreChange);
+        // 播放音效（使用原始分数判断，不受角色特性影响）
+        if (originalScoreChange > 0 || foodType === FoodType.LEMON) {
+          // 加分食物或减速食物（有利）：coin04.mp3
+          console.info('Triggering positive sound effect for:', FoodType[foodType]);
           this.musicManager.playSoundEffect('coin04.mp3');
+        } else if (originalScoreChange < 0 || foodType === FoodType.FLOWER) {
+          // 减分食物或加速食物（不利）：button04b.mp3
+          console.info('Triggering negative sound effect for:', FoodType[foodType]);
+          this.musicManager.playSoundEffect('button04b.mp3');
         }
         
         this.foods.splice(i, 1);
