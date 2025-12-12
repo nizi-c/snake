@@ -7,9 +7,9 @@ export class MusicManager {
   private audioPlayer: media.AVPlayer | null = null;
   private isPlaying: boolean = false;
   private isEnabled: boolean = true;
-  private volume: number = 0.5; // 音乐音量 0.0 - 1.0
+  private volume: number = 0.25; // 音乐音量 0.0 - 1.0
   private soundEffectEnabled: boolean = true; // 音效开关
-  private soundEffectVolume: number = 0.5; // 音效音量 0.0 - 1.0
+  private soundEffectVolume: number = 1.0; // 音效音量 0.0 - 1.0
   private listeners: Array<(isPlaying: boolean, volume: number) => void> = [];
   private context: Context | null = null;
 
@@ -42,22 +42,22 @@ export class MusicManager {
       if (settingsVersion < 2) {
         // 首次运行或旧版本，设置默认值
         this.isEnabled = true;
-        this.volume = 0.5;
+        this.volume = 0.25;
         this.soundEffectEnabled = true;
-        this.soundEffectVolume = 0.5;
+        this.soundEffectVolume = 1.0;
         await prefs.put('musicEnabled', true);
-        await prefs.put('musicVolume', 0.5);
+        await prefs.put('musicVolume', 0.25);
         await prefs.put('soundEffectEnabled', true);
-        await prefs.put('soundEffectVolume', 0.5);
+        await prefs.put('soundEffectVolume', 1.0);
         await prefs.put('musicSettingsVersion', 2);
         await prefs.flush();
         console.info('Music settings initialized with defaults');
       } else {
         // 加载已保存的设置
         this.isEnabled = await prefs.get('musicEnabled', true) as boolean;
-        this.volume = await prefs.get('musicVolume', 0.5) as number;
+        this.volume = await prefs.get('musicVolume', 0.25) as number;
         this.soundEffectEnabled = await prefs.get('soundEffectEnabled', true) as boolean;
-        this.soundEffectVolume = await prefs.get('soundEffectVolume', 0.5) as number;
+        this.soundEffectVolume = await prefs.get('soundEffectVolume', 1.0) as number;
         console.info('Music settings loaded:', this.isEnabled, this.volume, this.soundEffectEnabled, this.soundEffectVolume);
       }
     } catch (err) {

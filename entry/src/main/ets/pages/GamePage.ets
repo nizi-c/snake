@@ -28,6 +28,9 @@ struct GamePage {
   @State gameMode: string = 'casual';
   @State updateFlag: number = 0;
   @State currentTime: string = '00:00';
+  private savedLevelId: number = 1; // 保存关卡ID
+  private savedTimeLimit: number = 180; // 保存时间限制
+  private savedTargetScore: number = 0; // 保存目标分数
   @State controlMode: string = 'click'; // 'button' 或 'click'，默认为点击控制
   @State showControlDialog: boolean = false;
   @State showMenuDialog: boolean = false;
@@ -145,7 +148,18 @@ struct GamePage {
 
   async loadGameSettings() {
     const params = router.getParams() as Record<string, Object>;
-    this.gameMode = (params?.mode as string) || 'casual';
+    
+    // 如果有mode参数，保存游戏模式和挑战参数
+    if (params?.mode) {
+      this.gameMode = params.mode as string;
+      if (this.gameMode === 'challenge') {
+        this.savedLevelId = (params?.levelId as number) || 1;
+        this.savedTimeLimit = (params?.timeLimit as number) || 180;
+        this.savedTargetScore = (params?.targetScore as number) || 0;
+      }
+    }
+    // 如果没有mode参数但有reload参数，使用保存的模式
+    // 这样从角色选择返回时不会丢失挑战模式
     
     // 更新背景图片
     this.updateBackgroundImage();
@@ -155,10 +169,10 @@ struct GamePage {
     let gridHeight = 15;
     let characterImage = 'xiaomao.jpg';
     
-    // 挑战模式参数
+    // 挑战模式参数（使用保存的值）
     const isChallengeMode = this.gameMode === 'challenge';
-    const timeLimit = (params?.timeLimit as number) || 180;
-    const targetScore = (params?.targetScore as number) || 0;
+    const timeLimit = this.savedTimeLimit;
+    const targetScore = this.savedTargetScore;
     
     // 检查是否从设置页面或角色选择页面返回
     if (params?.reload) {
@@ -438,6 +452,22 @@ struct GamePage {
       const unlockedLevel = await prefs.get('unlockedLevel', 1) as number;
       if (levelId >= unlockedLevel) {
         await prefs.put('unlockedLevel', levelId + 1);
+      }
+      
+      // 检查仓鼠角色解锁（完成第一关）
+      if (levelId === 1) {
+        const hamsterUnlocked = await prefs.get('hamsterUnlocked', false) as boolean;
+        if (!hamsterUnlocked) {
+          await prefs.put('hamsterUnlocked', true);
+          this.unlockedCharacterName = '仓鼠';
+          this.showUnlockDialog = true;
+          console.info('Hamster character unlocked by completing level 1');
+          
+          // 3秒后自动隐藏提示
+          setTimeout(() => {
+            this.showUnlockDialog = false;
+          }, 3000);
+        }
       }
       
       // 检查挑战模式成就
@@ -1139,7 +1169,7 @@ struct GamePage {
           .padding({ left: 20, right: 20 })
         }
         .width('100%')
-        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.6))
+        .backgroundColor(this.getTransparentBg(this.currentTheme.secondaryBg, 0.4))
 
         // 游戏区域
         Column() {
@@ -1293,7 +1323,7 @@ struct GamePage {
           }
           .width('90%')
           .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-          .backgroundColor('#FF9800')
+          .backgroundColor('rgba(255, 152, 0, 0.85)')
           .borderRadius(12)
           .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.3)' })
           .position({ x: '50%', y: 60 })
@@ -1329,7 +1359,7 @@ struct GamePage {
           }
           .width('90%')
           .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-          .backgroundColor('#4CAF50')
+          .backgroundColor('rgba(76, 175, 80, 0.85)')
           .borderRadius(12)
           .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.3)' })
           .position({ x: '50%', y: this.showUnlockDialog ? 120 : 60 })

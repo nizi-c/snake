@@ -16,6 +16,7 @@ struct CharacterSelectPage {
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
   @State totalGames: number = 0; // 总游戏次数
+  @State hamsterUnlocked: boolean = false; // 仓鼠解锁状态
   private themeManager: ThemeManager = ThemeManager.getInstance();
   private characters: CharacterInfo[] = [
     { name: '小猫', image: 'xiaomao.jpg', description: '免疫3次蘑菇扣分', unlockGames: 0 } as CharacterInfo,
@@ -37,7 +38,19 @@ struct CharacterSelectPage {
     });
     
     await this.loadTotalGames();
+    await this.loadHamsterUnlocked();
     await this.loadSelectedCharacter();
+  }
+
+  async loadHamsterUnlocked() {
+    try {
+      const context = getContext(this);
+      const prefs = await preferences.getPreferences(context, 'snake_settings');
+      this.hamsterUnlocked = await prefs.get('hamsterUnlocked', false) as boolean;
+      console.info('Hamster unlocked:', this.hamsterUnlocked);
+    } catch (err) {
+      console.error('Failed to load hamster unlock status:', err);
+    }
   }
 
   async loadTotalGames() {
@@ -82,6 +95,11 @@ struct CharacterSelectPage {
   }
 
   isCharacterUnlocked(character: CharacterInfo): boolean {
+    // 仓鼠特殊解锁条件：完成第一关挑战
+    if (character.name === '仓鼠') {
+      return this.hamsterUnlocked;
+    }
+    // 其他角色：基于游戏次数
     return this.totalGames >= character.unlockGames;
   }
 
@@ -198,7 +216,7 @@ struct CharacterSelectPage {
                         .height(16)
                         .margin({ right: 4 })
                       
-                      Text(`需要${character.unlockGames}局游戏解锁`)
+                      Text(character.name === '仓鼠' ? '完成第一关挑战解锁' : `需要${character.unlockGames}局游戏解锁`)
                         .fontSize(14)
                         .fontColor(this.currentTheme.hintText)
                     }
@@ -232,7 +250,7 @@ struct CharacterSelectPage {
             })
           })
 
-          Text('选择你喜欢的角色作为蛇头吧！')
+          Text('选择你喜欢的角色吧！')
             .fontSize(14)
             .fontColor(this.currentTheme.hintText)
             .margin({ top: 20, bottom: 30 })

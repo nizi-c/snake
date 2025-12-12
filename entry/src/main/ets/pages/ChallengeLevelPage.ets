@@ -44,6 +44,11 @@ struct ChallengeLevelPage {
     });
   }
 
+  onPageShow() {
+    // 页面显示时重新加载关卡数据，确保解锁状态是最新的
+    this.loadLevelData();
+  }
+
   async loadLevelData() {
     try {
       const context = getContext(this);
