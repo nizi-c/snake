@@ -197,8 +197,9 @@ struct ThemeSettingsPage {
 
             // 音效开关
             Row() {
-              Text('🔊')
-                .fontSize(24)
+              Image($rawfile('yinxiao.png'))
+                .width(32)
+                .height(32)
                 .margin({ right: 15 })
 
               Column() {

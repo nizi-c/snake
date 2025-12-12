@@ -260,8 +260,17 @@ export class SnakeGame {
     const speedLevel = Math.floor(effectiveScore / 50);
     const scoreSpeedMultiplier = Math.pow(0.9, speedLevel); // 每级速度提升10%
     
-    // 综合分数加速和食物效果
-    const currentSpeed = Math.max(this.baseSpeed * scoreSpeedMultiplier * this.speedMultiplier, 50); // 最快不超过50ms
+    // 挑战模式：额外的时间加速
+    let timeSpeedMultiplier = 1.0;
+    if (this.isChallengeMode && this.challengeStartTime > 0) {
+      const elapsedSeconds = (Date.now() - this.challengeStartTime) / 1000;
+      const minutesPassed = Math.floor(elapsedSeconds / 60);
+      // 每过1分钟，速度额外提升5%
+      timeSpeedMultiplier = Math.pow(0.95, minutesPassed);
+    }
+    
+    // 综合分数加速、时间加速和食物效果
+    const currentSpeed = Math.max(this.baseSpeed * scoreSpeedMultiplier * timeSpeedMultiplier * this.speedMultiplier, 50); // 最快不超过50ms
     return Math.floor(currentSpeed);
   }
 

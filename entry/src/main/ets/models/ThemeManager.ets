@@ -65,7 +65,7 @@ export const DarkTheme: Theme = {
   // 背景色 - 天蓝色调
   primaryBg: '#4A90C8',        // 天蓝主背景
   secondaryBg: '#5BA3D9',      // 亮天蓝
-  cardBg: '#6BB5E8',           // 浅天蓝卡片
+  cardBg: '#ffaccfe7',           // 浅天蓝卡片
   
   // 文字色 - 深色文字（在白色半透明卡片上显示）
   primaryText: '#1A1A1A',      // 深灰黑文字

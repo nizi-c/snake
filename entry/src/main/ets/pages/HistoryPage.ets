@@ -16,6 +16,7 @@ struct HistoryPage {
   @State records: GameRecord[] = [];
   @State currentTheme: Theme = LightTheme;
   @State bgImagePath: string = '';
+  @State showClearConfirmDialog: boolean = false;
   private themeManager: ThemeManager = ThemeManager.getInstance();
 
   async aboutToAppear() {
@@ -114,7 +115,8 @@ struct HistoryPage {
       case 'tuzi.jpg':
       case 'rabbit.png': // 兼容旧数据
         return '🐰 兔子';
-      case 'cangshu.png':
+      case 'cangshu.jpg':
+      case 'cangshu.png': // 兼容旧数据
         return '🐹 仓鼠';
       default:
         return '未知';
@@ -156,7 +158,7 @@ struct HistoryPage {
           .backgroundColor(this.currentTheme.buttonDanger)
           .fontColor('#FFFFFF')
           .onClick(() => {
-            this.clearHistory();
+            this.showClearConfirmDialog = true;
           })
       }
       .width('100%')
@@ -234,7 +236,7 @@ struct HistoryPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-        .backgroundColor(this.currentTheme.primaryBg)
+        .backgroundColor('rgba(0, 0, 0, 0)')
       } else {
         Scroll() {
           Column() {
@@ -303,6 +305,62 @@ struct HistoryPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.bgImagePath ? 'rgba(0, 0, 0, 0)' : this.currentTheme.primaryBg)
+
+      // 清空确认弹窗
+      if (this.showClearConfirmDialog) {
+        Column() {
+          Column() {
+            Text('确认清空')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.currentTheme.primaryText)
+              .margin({ bottom: 15 })
+
+            Text('确定要清空所有历史记录吗？\n此操作不可恢复。')
+              .fontSize(16)
+              .fontColor(this.currentTheme.secondaryText)
+              .textAlign(TextAlign.Center)
+              .lineHeight(24)
+              .margin({ bottom: 25 })
+
+            Row() {
+              Button('取消')
+                .fontSize(16)
+                .backgroundColor(this.currentTheme.buttonSecondary)
+                .fontColor(this.currentTheme.primaryText)
+                .layoutWeight(1)
+                .onClick(() => {
+                  this.showClearConfirmDialog = false;
+                })
+
+              Button('确定')
+                .fontSize(16)
+                .backgroundColor(this.currentTheme.buttonDanger)
+                .fontColor('#FFFFFF')
+                .layoutWeight(1)
+                .margin({ left: 15 })
+                .onClick(() => {
+                  this.showClearConfirmDialog = false;
+                  this.clearHistory();
+                })
+            }
+            .width('100%')
+          }
+          .width('70%')
+          .padding(25)
+          .backgroundColor(this.currentTheme.name === 'dark' ? this.currentTheme.cardBg : this.currentTheme.secondaryBg)
+          .borderRadius(16)
+          .shadow({ radius: 20, color: this.currentTheme.shadowColor })
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0, 0, 0, 0.5)')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .onClick(() => {
+          this.showClearConfirmDialog = false;
+        })
+      }
     }
     .width('100%')
     .height('100%')

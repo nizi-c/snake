@@ -570,6 +570,12 @@ struct GamePage {
   }
 
   handleCanvasClick(x: number, y: number) {
+    // 如果显示挑战成功弹窗，点击任何位置返回关卡页面
+    if (this.showChallengeSuccessDialog) {
+      router.back();
+      return;
+    }
+    
     if (this.controlMode !== 'click') return;
 
     const head = this.game.getSnake()[0];
@@ -682,7 +688,7 @@ struct GamePage {
         .height(50)
         .fontSize(18)
         .fontColor('#FFFFFF')
-        .backgroundColor(this.currentTheme.buttonPrimary)
+        .backgroundColor(this.currentTheme.buttonDanger)
         .margin({ bottom: 15 })
         .onClick(() => {
           this.showMenuDialog = false;
@@ -828,7 +834,7 @@ struct GamePage {
   @Builder
   RulesDialog() {
     Column() {
-      Text('休闲模式规则')
+      Text(this.gameMode === 'challenge' ? '挑战模式规则' : '休闲模式规则')
         .fontSize(24)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.currentTheme.primaryText)
@@ -843,11 +849,28 @@ struct GamePage {
             .margin({ bottom: 10 })
             .width('100%')
 
-          Text('控制小动物收集食物，获得尽可能高的分数和存活时间。')
+          Text(this.gameMode === 'challenge' ? 
+            '在限定时间内达到目标分数，帮助小动物收集足够的食物。' : 
+            '控制小动物收集食物，获得尽可能高的分数和存活时间。')
             .fontSize(14)
             .fontColor(this.currentTheme.secondaryText)
             .lineHeight(22)
             .margin({ bottom: 15 })
+
+          if (this.gameMode === 'challenge') {
+            Text('⏱️ 挑战规则')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.currentTheme.primaryText)
+              .margin({ bottom: 10 })
+              .width('100%')
+
+            Text('• 时间限制：必须在规定时间内完成\n• 生命系统：初始3条生命\n• 失败条件：时间耗尽或生命耗尽\n• 成功条件：达到目标分数')
+              .fontSize(14)
+              .fontColor(this.currentTheme.secondaryText)
+              .lineHeight(22)
+              .margin({ bottom: 15 })
+          }
 
           Text('🍎 食物系统')
             .fontSize(18)
@@ -882,10 +905,27 @@ struct GamePage {
             .margin({ bottom: 10 })
             .width('100%')
 
-          Text('每获得50分，速度自动提升10%，增加挑战难度。')
+          Text(this.gameMode === 'challenge' ? 
+            '• 每获得50分，速度提升10%\n• 每过1分钟，速度额外提升5%\n• 速度会持续增加，考验反应能力' : 
+            '每获得50分，速度自动提升10%，增加挑战难度。')
             .fontSize(14)
             .fontColor(this.currentTheme.secondaryText)
             .lineHeight(22)
+            .margin({ bottom: 15 })
+
+          if (this.gameMode === 'challenge') {
+            Text('💡 游戏提示')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.currentTheme.primaryText)
+              .margin({ bottom: 10 })
+              .width('100%')
+
+            Text('挑战模式的初始速度比休闲模式快一倍！善用柠檬🍋来减速，帮助你更好地控制节奏。')
+              .fontSize(14)
+              .fontColor(this.currentTheme.accentColor)
+              .lineHeight(22)
+          }
         }
         .width('100%')
       }
@@ -1088,8 +1128,8 @@ struct GamePage {
               }
 
               Image($rawfile(this.isMusicPlaying ? 'bofang.png' : 'bofang_n.png'))
-                .width(32)
-                .height(32)
+                .width(24)
+                .height(24)
                 .onClick(() => this.toggleMusic())
             }
           }
