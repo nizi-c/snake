@@ -7,7 +7,9 @@ export class MusicManager {
   private audioPlayer: media.AVPlayer | null = null;
   private isPlaying: boolean = false;
   private isEnabled: boolean = true;
-  private volume: number = 0.5; // 音量 0.0 - 1.0
+  private volume: number = 0.5; // 音乐音量 0.0 - 1.0
+  private soundEffectEnabled: boolean = true; // 音效开关
+  private soundEffectVolume: number = 0.5; // 音效音量 0.0 - 1.0
   private listeners: Array<(isPlaying: boolean, volume: number) => void> = [];
   private context: Context | null = null;
 
@@ -37,20 +39,26 @@ export class MusicManager {
       
       // 检查是否是首次运行或需要重置
       const settingsVersion = await prefs.get('musicSettingsVersion', 0) as number;
-      if (settingsVersion < 1) {
+      if (settingsVersion < 2) {
         // 首次运行或旧版本，设置默认值
         this.isEnabled = true;
         this.volume = 0.5;
+        this.soundEffectEnabled = true;
+        this.soundEffectVolume = 0.5;
         await prefs.put('musicEnabled', true);
         await prefs.put('musicVolume', 0.5);
-        await prefs.put('musicSettingsVersion', 1);
+        await prefs.put('soundEffectEnabled', true);
+        await prefs.put('soundEffectVolume', 0.5);
+        await prefs.put('musicSettingsVersion', 2);
         await prefs.flush();
         console.info('Music settings initialized with defaults');
       } else {
         // 加载已保存的设置
         this.isEnabled = await prefs.get('musicEnabled', true) as boolean;
         this.volume = await prefs.get('musicVolume', 0.5) as number;
-        console.info('Music settings loaded:', this.isEnabled, this.volume);
+        this.soundEffectEnabled = await prefs.get('soundEffectEnabled', true) as boolean;
+        this.soundEffectVolume = await prefs.get('soundEffectVolume', 0.5) as number;
+        console.info('Music settings loaded:', this.isEnabled, this.volume, this.soundEffectEnabled, this.soundEffectVolume);
       }
     } catch (err) {
       console.error('Failed to load music settings:', err);
@@ -198,6 +206,8 @@ export class MusicManager {
       const prefs = await preferences.getPreferences(this.context, 'snake_settings');
       await prefs.put('musicEnabled', this.isEnabled);
       await prefs.put('musicVolume', this.volume);
+      await prefs.put('soundEffectEnabled', this.soundEffectEnabled);
+      await prefs.put('soundEffectVolume', this.soundEffectVolume);
       await prefs.flush();
     } catch (err) {
       console.error('Failed to save music settings:', err);
@@ -219,6 +229,91 @@ export class MusicManager {
     this.listeners.forEach(callback => {
       callback(this.isPlaying, this.volume);
     });
+  }
+
+  playSoundEffect(soundFile: string) {
+    // 使用非阻塞方式播放音效，每次创建新播放器
+    this.playSoundEffectAsync(soundFile).catch((err: Error) => {
+      console.error('Sound effect error:', JSON.stringify(err));
+    });
+  }
+
+  private async playSoundEffectAsync(soundFile: string) {
+    try {
+      if (!this.context || !this.soundEffectEnabled) {
+        return;
+      }
+
+      // 每次创建新的播放器以避免状态冲突
+      const effectPlayer = await media.createAVPlayer();
+      
+      // 设置完成后自动释放
+      effectPlayer.on('stateChange', async (state) => {
+        if (state === 'completed' || state === 'stopped' || state === 'error') {
+          try {
+            await effectPlayer.release();
+          } catch (err) {
+            // 忽略释放错误
+          }
+        }
+      });
+      
+      effectPlayer.on('error', (err) => {
+        console.error('Sound effect error:', JSON.stringify(err));
+      });
+      
+      // 获取音效文件
+      const fileDescriptor = await this.context.resourceManager.getRawFd(soundFile);
+      
+      // 设置音频源
+      effectPlayer.fdSrc = {
+        fd: fileDescriptor.fd,
+        offset: fileDescriptor.offset,
+        length: fileDescriptor.length
+      };
+      
+      // 等待initialized状态
+      await new Promise<void>((resolve) => {
+        const stateHandler = (state: string) => {
+          if (state === 'initialized') {
+            resolve();
+          }
+        };
+        effectPlayer.on('stateChange', stateHandler);
+        
+        // 超时保护
+        setTimeout(() => resolve(), 500);
+      });
+      
+      // 准备并播放
+      await effectPlayer.prepare();
+      await effectPlayer.setVolume(this.soundEffectVolume);
+      await effectPlayer.play();
+    } catch (err) {
+      console.error('Failed to play sound effect:', JSON.stringify(err));
+    }
+  }
+
+  async toggleSoundEffect() {
+    this.soundEffectEnabled = !this.soundEffectEnabled;
+    await this.saveSettings();
+  }
+
+  async setSoundEffectVolume(volume: number) {
+    try {
+      this.soundEffectVolume = Math.max(0, Math.min(1, volume));
+      await this.saveSettings();
+    } catch (err) {
+      console.error('Failed to set sound effect volume:', err);
+    }
+  }
+
+  getSoundEffectVolume(): number {
+    return this.soundEffectVolume;
+  }
+
+  isSoundEffectEnabled(): boolean {
+    return this.soundEffectEnabled;
   }
 
   async release() {

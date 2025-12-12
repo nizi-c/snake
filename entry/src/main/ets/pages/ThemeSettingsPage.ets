@@ -9,6 +9,8 @@ struct ThemeSettingsPage {
   @State bgImagePath: string = '';
   @State isMusicEnabled: boolean = true;
   @State musicVolume: number = 0.5;
+  @State isSoundEffectEnabled: boolean = true;
+  @State soundEffectVolume: number = 0.5;
   private themeManager: ThemeManager = ThemeManager.getInstance();
   private musicManager: MusicManager = MusicManager.getInstance();
 
@@ -19,9 +21,11 @@ struct ThemeSettingsPage {
     // 设置背景图片
     this.updateBackgroundImage();
     
-    // 加载音乐状态
+    // 加载音乐和音效状态
     this.isMusicEnabled = this.musicManager.isPlayingMusic();
     this.musicVolume = this.musicManager.getVolume();
+    this.isSoundEffectEnabled = this.musicManager.isSoundEffectEnabled();
+    this.soundEffectVolume = this.musicManager.getSoundEffectVolume();
     
     // 监听主题变化
     this.themeManager.addListener((theme: Theme) => {
@@ -183,6 +187,78 @@ struct ThemeSettingsPage {
                 .showTips(true)
                 .onChange((value: number) => {
                   this.musicManager.setVolume(value / 100);
+                })
+            }
+            .width('100%')
+            .padding({ left: 20, right: 20, top: 15, bottom: 15 })
+            .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.6))
+            .borderRadius(12)
+            .margin({ left: 15, right: 15, bottom: 10 })
+
+            // 音效开关
+            Row() {
+              Text('🔊')
+                .fontSize(24)
+                .margin({ right: 15 })
+
+              Column() {
+                Text('游戏音效')
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.currentTheme.primaryText)
+                
+                Text('吃到食物时的音效')
+                  .fontSize(14)
+                  .fontColor(this.currentTheme.secondaryText)
+                  .margin({ top: 4 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+
+              Toggle({ type: ToggleType.Switch, isOn: this.isSoundEffectEnabled })
+                .selectedColor(this.currentTheme.accentColor)
+                .onChange((isOn: boolean) => {
+                  this.isSoundEffectEnabled = isOn;
+                  this.musicManager.toggleSoundEffect();
+                })
+            }
+            .width('100%')
+            .padding({ left: 20, right: 20, top: 15, bottom: 15 })
+            .backgroundColor(this.getTransparentBg(this.currentTheme.cardBg, 0.6))
+            .borderRadius(12)
+            .margin({ left: 15, right: 15, bottom: 10 })
+
+            // 音效音量
+            Column() {
+              Row() {
+                Text('音效音量')
+                  .fontSize(16)
+                  .fontColor(this.currentTheme.primaryText)
+                  .layoutWeight(1)
+
+                Text(`${Math.round(this.soundEffectVolume * 100)}%`)
+                  .fontSize(16)
+                  .fontColor(this.currentTheme.accentColor)
+                  .fontWeight(FontWeight.Bold)
+              }
+              .width('100%')
+              .margin({ bottom: 10 })
+
+              Slider({
+                value: this.soundEffectVolume * 100,
+                min: 0,
+                max: 100,
+                step: 5,
+                style: SliderStyle.OutSet
+              })
+                .width('100%')
+                .trackColor(this.currentTheme.borderColor)
+                .selectedColor(this.currentTheme.accentColor)
+                .showSteps(false)
+                .showTips(true)
+                .onChange((value: number) => {
+                  this.soundEffectVolume = value / 100;
+                  this.musicManager.setSoundEffectVolume(value / 100);
                 })
             }
             .width('100%')

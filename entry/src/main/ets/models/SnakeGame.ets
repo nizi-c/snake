@@ -1,3 +1,5 @@
+import { MusicManager } from './MusicManager';
+
 export enum Direction {
   UP,
   DOWN,
@@ -55,6 +57,7 @@ export class SnakeGame {
   private mushroomImmunity: number = 0; // 蘑菇免疫次数
   private totalFoodsEaten: number = 0; // 本局吃掉的食物总数
   private lastFoodWasQuick: boolean = false; // 最后吃掉的食物是否在3秒内
+  private musicManager: MusicManager = MusicManager.getInstance();
 
   constructor(speed: number = 200, gridWidth: number = 28, gridHeight: number = 18, character: string = 'xiaomao.jpg', 
               isChallengeMode: boolean = false, timeLimit: number = 180, targetScore: number = 0) {
@@ -551,6 +554,12 @@ export class SnakeGame {
         
         this.totalFoodsEaten++;
         this.lastFoodWasQuick = timeSinceSpawn <= 3.0;
+        
+        // 播放音效：加分食物或减速食物（柠檬）
+        if (scoreChange > 0 || foodType === FoodType.LEMON) {
+          console.info('Triggering sound effect for food type:', FoodType[foodType], 'scoreChange:', scoreChange);
+          this.musicManager.playSoundEffect('coin04.mp3');
+        }
         
         this.foods.splice(i, 1);
         ateFood = true;
