@@ -297,6 +297,9 @@ struct GamePage {
   }
 
   async saveGameRecord() {
+    // 播放游戏结束音效
+    this.musicManager.playSoundEffect('over.wav');
+    
     try {
       const context = getContext(this);
       const prefs = await preferences.getPreferences(context, 'snake_settings');
@@ -536,6 +539,9 @@ struct GamePage {
       this.hasShownSuccessDialog = true;
       this.showChallengeSuccessDialog = true;
       this.stopGame();
+      
+      // 播放挑战成功音效
+      this.musicManager.playSoundEffect('win.wav');
       
       // 保存挑战记录
       this.saveChallengeRecord();
